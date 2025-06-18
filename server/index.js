@@ -1155,6 +1155,15 @@ app.post("/api/convert-pdf-all", upload.single("pdfFile"), async (req, res) => {
   }
 });
 
+// OPTIONSリクエスト対応（プリフライト）
+app.options("/api/generate-code", (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Origin, X-Requested-With');
+  res.header('Access-Control-Max-Age', '86400'); // 24時間キャッシュ
+  res.sendStatus(200);
+});
+
 // コード生成エンドポイント
 app.post("/api/generate-code", upload.any(), async (req, res) => {
   try {
