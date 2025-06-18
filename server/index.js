@@ -107,6 +107,27 @@ app.options('*', (req, res) => {
 
 app.use(express.json());
 
+// CORSテスト用シンプルエンドポイント
+app.get('/api/test-cors', (req, res) => {
+  console.log('🔍 CORS Test endpoint hit from origin:', req.get('Origin'));
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.json({ 
+    message: 'CORS test successful!', 
+    timestamp: new Date().toISOString(),
+    origin: req.get('Origin') || 'No origin header'
+  });
+});
+
+app.options('/api/test-cors', (req, res) => {
+  console.log('🔍 CORS Test OPTIONS from origin:', req.get('Origin'));
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.status(200).end();
+});
+
 // マルチパートフォームデータ処理用の設定
 const storage = multer.memoryStorage();
 const upload = multer({ 
