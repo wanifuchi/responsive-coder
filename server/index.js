@@ -9,6 +9,15 @@ import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import { takeScreenshot, compareImages, iterateDesign } from './screenshot.js';
 import { convertPdfToImage, getPdfPageCount, cleanupTempFiles, convertPdfToMultipleImages, combineImagesVertically } from './pdfProcessor.js';
+import { 
+  generateSidebarLayout, 
+  generateMultiColumnContent, 
+  generateFooter, 
+  generatePixelPerfectCSS, 
+  generateInteractiveJS,
+  getUltraBasicTemplate,
+  adjustColor
+} from './image-analysis-helpers.js';
 
 dotenv.config();
 
@@ -20,10 +29,20 @@ const port = process.env.PORT || 3001;
 
 // OpenAI APIクライアントの初期化（APIキーが設定されている場合のみ）
 let openai = null;
-if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'your_openai_api_key_here') {
+const hasValidApiKey = process.env.OPENAI_API_KEY && 
+                      process.env.OPENAI_API_KEY !== 'your_openai_api_key_here' &&
+                      process.env.OPENAI_API_KEY.startsWith('sk-');
+
+if (hasValidApiKey) {
+  console.log('✅ OpenAI API key detected, initializing client...');
   openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
   });
+} else {
+  console.log('⚠️ WARNING: OpenAI API key not configured or invalid!');
+  console.log('  - Key exists:', !!process.env.OPENAI_API_KEY);
+  console.log('  - Key format:', process.env.OPENAI_API_KEY?.substring(0, 7) + '...');
+  console.log('  - Using ENHANCED image analysis fallback instead');
 }
 
 // CORS設定
@@ -85,8 +104,15 @@ async function generateCodeFromDesigns(pcImage, spImage, referenceUrl = null) {
   try {
     // OpenAI APIが利用できない場合は高度なフォールバックを使用
     if (!openai) {
-      console.log('OpenAI API key not configured, using advanced fallback template');
-      return await getAdvancedFallbackTemplate(pcImage, spImage, referenceUrl);
+      console.log('⚠️ OpenAI API key not configured, using ULTRA-ENHANCED fallback with detailed image analysis');
+      // エラーメッセージを含む高度な分析結果を返す
+      const analysisResult = await performDeepImageAnalysis(pcImage, spImage, referenceUrl);
+      return {
+        html: analysisResult.html,
+        css: analysisResult.css,
+        js: analysisResult.js || '',
+        analysis: 'IMPORTANT: OpenAI API is not configured. Using enhanced image analysis fallback.'
+      };
     }
 
     // 画像をBase64に変換
@@ -266,6 +292,257 @@ async function generateCodeFromDesigns(pcImage, spImage, referenceUrl = null) {
     // フォールバック: 高度なテンプレートを返す
     return await getAdvancedFallbackTemplate(pcImage, spImage, referenceUrl);
   }
+}
+
+// 深層画像解析（OpenAI API不使用時の究極フォールバック）
+async function performDeepImageAnalysis(pcImage, spImage, referenceUrl) {
+  console.log('🔬 Starting ULTRA-ENHANCED image analysis...');
+  
+  try {
+    // PC画像の超詳細分析
+    const pcAnalysis = await analyzeImageUltraDetailed(pcImage);
+    // SP画像の超詳細分析
+    const spAnalysis = await analyzeImageUltraDetailed(spImage);
+    
+    // 参考URLの分析
+    let referenceData = null;
+    if (referenceUrl) {
+      referenceData = await analyzeReferenceUrl(referenceUrl);
+    }
+    
+    // 画像の視覚的特徴から具体的なHTMLを生成
+    return generatePixelPerfectCode(pcAnalysis, spAnalysis, referenceData);
+    
+  } catch (error) {
+    console.error('Deep analysis error:', error);
+    // 最終フォールバック
+    return getUltraBasicTemplate();
+  }
+}
+
+// 超詳細画像分析
+async function analyzeImageUltraDetailed(imageBuffer) {
+  const image = sharp(imageBuffer);
+  const metadata = await image.metadata();
+  const stats = await image.stats();
+  
+  // 画像を小さなグリッドに分割して色を分析
+  const gridSize = 10; // 10x10グリッド
+  const cellWidth = Math.floor(metadata.width / gridSize);
+  const cellHeight = Math.floor(metadata.height / gridSize);
+  
+  const colorGrid = [];
+  for (let y = 0; y < gridSize; y++) {
+    const row = [];
+    for (let x = 0; x < gridSize; x++) {
+      const region = await image
+        .extract({
+          left: x * cellWidth,
+          top: y * cellHeight,
+          width: cellWidth,
+          height: cellHeight
+        })
+        .stats();
+      
+      row.push({
+        r: Math.round(region.dominant.r),
+        g: Math.round(region.dominant.g),
+        b: Math.round(region.dominant.b),
+        brightness: (region.dominant.r + region.dominant.g + region.dominant.b) / 3 / 255
+      });
+    }
+    colorGrid.push(row);
+  }
+  
+  // レイアウト推定のための分析
+  const topSection = colorGrid.slice(0, 2);
+  const middleSection = colorGrid.slice(3, 7);
+  const bottomSection = colorGrid.slice(8, 10);
+  
+  // ヘッダー検出（上部が均一な色かチェック）
+  const hasHeader = checkUniformColor(topSection);
+  
+  // フッター検出（下部が均一な色かチェック）
+  const hasFooter = checkUniformColor(bottomSection);
+  
+  // カラムレイアウト検出（中央部の色の変化を分析）
+  const columnCount = detectColumns(middleSection);
+  
+  return {
+    width: metadata.width,
+    height: metadata.height,
+    colorGrid,
+    dominantColors: extractDominantColors(stats),
+    layout: {
+      hasHeader,
+      hasFooter,
+      columnCount,
+      isSidebar: columnCount === 2 && metadata.width > 1000
+    },
+    brightness: stats.channels.reduce((sum, ch) => sum + ch.mean, 0) / stats.channels.length / 255
+  };
+}
+
+// 色の均一性をチェック
+function checkUniformColor(section) {
+  if (!section || section.length === 0) return false;
+  
+  const firstColor = section[0][0];
+  const threshold = 30; // RGB値の差の閾値
+  
+  return section.every(row => 
+    row.every(cell => 
+      Math.abs(cell.r - firstColor.r) < threshold &&
+      Math.abs(cell.g - firstColor.g) < threshold &&
+      Math.abs(cell.b - firstColor.b) < threshold
+    )
+  );
+}
+
+// カラム数を検出
+function detectColumns(section) {
+  if (!section || section.length === 0) return 1;
+  
+  // 垂直方向の色の変化を検出
+  const verticalChanges = [];
+  for (let x = 1; x < section[0].length; x++) {
+    let changeCount = 0;
+    for (let y = 0; y < section.length; y++) {
+      const prev = section[y][x - 1];
+      const curr = section[y][x];
+      const diff = Math.abs(prev.r - curr.r) + Math.abs(prev.g - curr.g) + Math.abs(prev.b - curr.b);
+      if (diff > 100) changeCount++;
+    }
+    verticalChanges.push(changeCount);
+  }
+  
+  // 大きな変化の数からカラム数を推定
+  const significantChanges = verticalChanges.filter(c => c > section.length / 2).length;
+  return Math.min(significantChanges + 1, 4); // 最大4カラム
+}
+
+// 主要な色を抽出
+function extractDominantColors(stats) {
+  const { dominant, channels } = stats;
+  
+  return {
+    primary: `rgb(${dominant.r}, ${dominant.g}, ${dominant.b})`,
+    isDark: (dominant.r + dominant.g + dominant.b) / 3 < 128,
+    hasHighContrast: Math.max(...channels.map(ch => ch.stdev)) > 100
+  };
+}
+
+// ピクセルパーフェクトなコード生成
+function generatePixelPerfectCode(pcAnalysis, spAnalysis, referenceData) {
+  const { dominantColors, layout } = pcAnalysis;
+  const backgroundColor = dominantColors.isDark ? '#0a0a0a' : '#ffffff';
+  const textColor = dominantColors.isDark ? '#ffffff' : '#1a1a1a';
+  const primaryColor = dominantColors.primary;
+  
+  // レイアウトに基づいたHTML構造
+  const html = `<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${referenceData?.title || 'Pixel Perfect Design'}</title>
+    <meta name="description" content="${referenceData?.description || 'アップロードされた画像に基づいて生成されたWebサイト'}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    ${layout.hasHeader ? generateHeader(primaryColor, textColor) : ''}
+    
+    <main class="main-content">
+        ${generateMainContent(layout, pcAnalysis, textColor)}
+    </main>
+    
+    ${layout.hasFooter ? generateFooter(primaryColor, textColor) : ''}
+    
+    <script src="script.js"></script>
+</body>
+</html>`;
+
+  const css = generatePixelPerfectCSS(pcAnalysis, spAnalysis, backgroundColor, textColor, primaryColor);
+  
+  const js = generateInteractiveJS();
+  
+  return { html, css, js };
+}
+
+// ヘッダー生成
+function generateHeader(bgColor, textColor) {
+  return `
+    <header class="site-header">
+        <div class="header-container">
+            <div class="logo">
+                <h1>Your Brand</h1>
+            </div>
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="#home">ホーム</a></li>
+                    <li><a href="#about">サービス</a></li>
+                    <li><a href="#services">機能</a></li>
+                    <li><a href="#contact">お問い合わせ</a></li>
+                </ul>
+            </nav>
+            <button class="mobile-menu-toggle" aria-label="メニュー">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </header>`;
+}
+
+// メインコンテンツ生成
+function generateMainContent(layout, analysis, textColor) {
+  if (layout.columnCount === 1) {
+    return generateSingleColumnContent();
+  } else if (layout.isSidebar) {
+    return generateSidebarLayout();
+  } else {
+    return generateMultiColumnContent(layout.columnCount);
+  }
+}
+
+// シングルカラムコンテンツ
+function generateSingleColumnContent() {
+  return `
+        <section class="hero-section">
+            <div class="container">
+                <h2 class="hero-title">美しいデザインを実現</h2>
+                <p class="hero-description">アップロードされた画像に基づいて、ピクセルパーフェクトなWebサイトを生成します</p>
+                <div class="cta-group">
+                    <button class="cta-button primary">始めてみる</button>
+                    <button class="cta-button secondary">詳細を見る</button>
+                </div>
+            </div>
+        </section>
+        
+        <section class="features-section">
+            <div class="container">
+                <h3 class="section-title">主な特徴</h3>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🎨</div>
+                        <h4>ピクセルパーフェクト</h4>
+                        <p>画像の細部まで正確に再現します</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📱</div>
+                        <h4>レスポンシブ対応</h4>
+                        <p>すべてのデバイスで美しく表示</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">⚡</div>
+                        <h4>高速パフォーマンス</h4>
+                        <p>最適化されたコードで高速動作</p>
+                    </div>
+                </div>
+            </div>
+        </section>`;
 }
 
 // 画像から詳細情報を抽出
