@@ -1,0 +1,15 @@
+
+> responsive-coder-server@1.0.0 start
+> node index.js
+
+Server running at http://localhost:3001
+Supported file types: Images (PNG, JPG, GIF, etc.) and PDF
+Maximum file size: 50MB
+OpenAI API key not configured, using advanced fallback template
+Generating template with analysis: {
+  layoutType: 'mobile-vertical',
+  contentType: 'content-page',
+  hasMultipleColumns: false,
+  brightness: 0.8894647256553732,
+  primaryColor: 'rgb(248, 248, 248)'
+}

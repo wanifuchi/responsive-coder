@@ -1,0 +1,90 @@
+.code-generator {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.code-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tab {
+  padding: 0.5rem 1rem;
+  background: transparent;
+  color: #666;
+  border-radius: 4px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.tab.active {
+  background: #667eea;
+  color: white;
+}
+
+.tab:hover:not(.active) {
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.copy-button,
+.download-button {
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.copy-button {
+  background: #28a745;
+  color: white;
+}
+
+.copy-button:hover {
+  background: #218838;
+}
+
+.download-button {
+  background: #007bff;
+  color: white;
+}
+
+.download-button:hover {
+  background: #0056b3;
+}
+
+.code-content {
+  max-height: 500px;
+  overflow: auto;
+  background: #f8f9fa;
+}
+
+.code-content pre {
+  margin: 0;
+  padding: 1.5rem;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.code-content code {
+  color: #333;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}

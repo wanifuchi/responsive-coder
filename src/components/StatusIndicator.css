@@ -1,0 +1,103 @@
+.status-indicator {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: white;
+  border-radius: 12px;
+  padding: 1rem 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  min-width: 250px;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.status-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.status-content p {
+  margin: 0;
+  font-weight: 500;
+  flex: 1;
+}
+
+/* ローディング状態 */
+.status-indicator.loading {
+  border-left: 4px solid #667eea;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #f0f0f0;
+  border-radius: 0 0 12px 12px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #667eea;
+  transition: width 0.3s ease;
+}
+
+/* 成功状態 */
+.status-indicator.success {
+  border-left: 4px solid #28a745;
+}
+
+.status-indicator.success svg {
+  color: #28a745;
+}
+
+/* エラー状態 */
+.status-indicator.error {
+  border-left: 4px solid #dc3545;
+}
+
+.status-indicator.error svg {
+  color: #dc3545;
+}
+
+.status-indicator.error p {
+  color: #dc3545;
+}
+
+/* モバイル対応 */
+@media (max-width: 768px) {
+  .status-indicator {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    min-width: auto;
+  }
+}

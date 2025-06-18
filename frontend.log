@@ -1,0 +1,41 @@
+
+> responsive-coder@1.0.0 dev
+> vite
+
+
+  VITE v5.4.19  ready in 114 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+8:38:03 [vite] hmr update /src/App.jsx
+8:58:25 [vite] hmr update /src/App.jsx
+8:58:33 [vite] hmr update /src/App.jsx
+8:58:41 [vite] hmr update /src/App.jsx
+8:58:58 [vite] hmr update /src/App.jsx
+8:59:09 [vite] hmr update /src/App.jsx
+8:59:20 [vite] hmr update /src/App.jsx
+8:59:41 [vite] hmr update /src/styles/App.css
+9:26:23 [vite] hmr update /src/App.jsx
+9:26:30 [vite] hmr update /src/App.jsx
+9:26:36 [vite] hmr update /src/App.jsx
+9:26:43 [vite] hmr update /src/App.jsx
+9:26:53 [vite] hmr update /src/App.jsx
+9:27:07 [vite] hmr update /src/App.jsx
+9:27:17 [vite] hmr update /src/styles/App.css
+9:27:24 [vite] hmr update /src/components/CodeGenerator.jsx
+9:27:31 [vite] hmr update /src/components/CodeGenerator.jsx
+9:27:39 [vite] hmr update /src/components/CodeGenerator.jsx
+9:27:48 [vite] hmr update /src/components/CodeGenerator.jsx
+9:27:53 [vite] hmr update /src/App.jsx
+9:29:39 [vite] hmr update /src/components/IterationPanel.jsx
+9:29:47 [vite] hmr update /src/components/IterationPanel.jsx
+9:29:55 [vite] hmr update /src/components/IterationPanel.jsx
+9:30:02 [vite] hmr update /src/App.jsx
+9:30:09 [vite] hmr update /src/App.jsx
+9:45:30 [vite] page reload debug_iteration.html
+9:52:19 [vite] hmr update /src/components/IterationPanel.jsx
+9:52:27 [vite] hmr update /src/components/IterationPanel.jsx
+9:52:34 [vite] hmr update /src/components/IterationPanel.jsx
+15:15:02 [vite] hmr update /src/App.jsx
+15:15:11 [vite] hmr update /src/components/IterationPanel.jsx
+15:15:19 [vite] hmr update /src/components/IterationPanel.jsx
