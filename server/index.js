@@ -60,28 +60,49 @@ if (hasValidOpenAIKey && !geminiModel) {
 // CORS設定
 const corsOptions = {
   origin: function (origin, callback) {
+    console.log('🌐 CORS Request from origin:', origin);
+    
     const allowedOrigins = [
       'http://localhost:5173',
       'http://localhost:3000',
+      'https://responsive-coder.vercel.app',
       process.env.FRONTEND_URL,
       // Vercelのプレビューデプロイメント用
       /^https:\/\/.*\.vercel\.app$/
-    ];
+    ].filter(Boolean); // undefinedを除外
+    
+    console.log('✅ Allowed origins:', allowedOrigins);
     
     // 開発環境ではoriginがundefinedの場合がある
-    if (!origin || allowedOrigins.some(allowed => {
+    if (!origin) {
+      console.log('📝 No origin header (likely same-origin or tools), allowing...');
+      callback(null, true);
+      return;
+    }
+    
+    const isAllowed = allowedOrigins.some(allowed => {
       if (allowed instanceof RegExp) {
-        return allowed.test(origin);
+        const result = allowed.test(origin);
+        console.log(`🔍 Regex test ${allowed} against ${origin}: ${result}`);
+        return result;
       }
-      return allowed === origin;
-    })) {
+      const result = allowed === origin;
+      console.log(`🔍 Exact match ${allowed} against ${origin}: ${result}`);
+      return result;
+    });
+    
+    if (isAllowed) {
+      console.log('✅ CORS: Request allowed');
       callback(null, true);
     } else {
+      console.log('❌ CORS: Request blocked');
       callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
 };
 
 // ミドルウェア
