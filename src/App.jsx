@@ -264,12 +264,21 @@ function App() {
           >
             {isGenerating ? 'コード生成中...' : 'コードを生成'}
           </button>
-          {/* デバッグ情報 */}
-          <div style={{fontSize: '12px', color: '#666', marginTop: '10px'}}>
+          {/* 詳細情報表示 */}
+          <div style={{fontSize: '12px', color: '#666', marginTop: '10px', background: '#f8f9fa', padding: '10px', borderRadius: '5px'}}>
             {useMultiMode ? (
-              <>PC画像: {multiImages.pc.length}個 | SP画像: {multiImages.sp.length}個 | 生成中: {isGenerating ? '✅' : '❌'}</>
+              <>
+                <div>📁 PC画像: {multiImages.pc.length}個 | SP画像: {multiImages.sp.length}個</div>
+                <div>🔄 生成状態: {isGenerating ? '✅ 処理中' : '❌ 待機中'}</div>
+              </>
             ) : (
-              <>PC画像: {designs.pc ? '✅' : '❌'} | SP画像: {designs.sp ? '✅' : '❌'} | 生成中: {isGenerating ? '✅' : '❌'}</>
+              <>
+                <div>📁 PC画像: {designs.pc ? '✅ 準備完了' : '❌ 未アップロード'} | SP画像: {designs.sp ? '✅ 準備完了' : '❌ 未アップロード'}</div>
+                <div>🔄 生成状態: {isGenerating ? '✅ 処理中' : '❌ 待機中'}</div>
+                <div style={{marginTop: '5px', fontSize: '11px', color: '#888'}}>
+                  💡 ヒント: 大きな画像（50MB以下）もアップロード可能です。サーバーで自動的に最適化されます。
+                </div>
+              </>
             )}
           </div>
         </div>

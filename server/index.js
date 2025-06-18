@@ -105,10 +105,69 @@ const upload = multer({
   }
 });
 
-// 画像をBase64に変換
-async function imageToBase64(buffer) {
-  const base64 = buffer.toString('base64');
-  return `data:image/png;base64,${base64}`;
+// 画像をBase64に変換（Gemini API対応の自動圧縮付き）
+async function imageToBase64(buffer, maxSizeMB = 3.5) {
+  try {
+    const maxSizeBytes = maxSizeMB * 1024 * 1024;
+    
+    // 元のサイズをチェック
+    const originalSize = buffer.length;
+    console.log(`📷 Original image size: ${(originalSize / 1024 / 1024).toFixed(2)}MB`);
+    
+    let processedBuffer = buffer;
+    
+    // 4MB（実際は3.5MB）を超える場合は圧縮
+    if (originalSize > maxSizeBytes) {
+      console.log('🔄 Image too large for Gemini API, compressing...');
+      
+      // 品質を調整しながら段階的に圧縮
+      let quality = 90;
+      let compressed;
+      
+      do {
+        compressed = await sharp(buffer)
+          .resize(1920, 1080, { 
+            fit: 'inside', 
+            withoutEnlargement: true 
+          })
+          .jpeg({ 
+            quality: quality,
+            progressive: true
+          })
+          .toBuffer();
+          
+        console.log(`🔄 Compressed with quality ${quality}: ${(compressed.length / 1024 / 1024).toFixed(2)}MB`);
+        quality -= 10;
+      } while (compressed.length > maxSizeBytes && quality > 30);
+      
+      // さらに小さくする必要がある場合はサイズを縮小
+      if (compressed.length > maxSizeBytes) {
+        console.log('🔄 Further resizing required...');
+        compressed = await sharp(buffer)
+          .resize(1280, 720, { 
+            fit: 'inside', 
+            withoutEnlargement: true 
+          })
+          .jpeg({ 
+            quality: 70,
+            progressive: true
+          })
+          .toBuffer();
+      }
+      
+      processedBuffer = compressed;
+      console.log(`✅ Final compressed size: ${(processedBuffer.length / 1024 / 1024).toFixed(2)}MB`);
+    }
+    
+    const base64 = processedBuffer.toString('base64');
+    return `data:image/jpeg;base64,${base64}`;
+    
+  } catch (error) {
+    console.error('Image processing error:', error);
+    // エラーの場合は元の画像をそのまま使用
+    const base64 = buffer.toString('base64');
+    return `data:image/png;base64,${base64}`;
+  }
 }
 
 // 画像を解析してHTML/CSSを生成
@@ -161,7 +220,20 @@ async function generateCodeFromDesigns(pcImage, spImage, referenceUrl = null) {
 // Gemini APIを使用したコード生成
 async function generateWithGemini(pcImage, spImage, referenceUrl) {
   try {
-    // 画像をBase64に変換
+    // 画像サイズをチェック
+    const pcSize = pcImage.length / 1024 / 1024;
+    const spSize = spImage.length / 1024 / 1024;
+    const totalSize = pcSize + spSize;
+    
+    console.log(`📊 Image sizes - PC: ${pcSize.toFixed(2)}MB, SP: ${spSize.toFixed(2)}MB, Total: ${totalSize.toFixed(2)}MB`);
+    
+    // 非常に大きな画像の場合はOpenAIに自動フォールバック
+    if (totalSize > 15 && openai) {
+      console.log('📈 Images too large, automatically falling back to OpenAI...');
+      return await generateWithOpenAI(pcImage, spImage, referenceUrl);
+    }
+    
+    // 画像をBase64に変換（自動圧縮付き）
     const pcBase64 = await imageToBase64(pcImage);
     const spBase64 = await imageToBase64(spImage);
     
