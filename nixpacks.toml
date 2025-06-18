@@ -2,10 +2,13 @@
 providers = ["node"]
 
 [phases.setup]
-nixPkgs = ["nodejs_20"]
+nixPkgs = ["nodejs_20", "vips"]
 
 [phases.install]
-cmds = ["cd server && npm install --production"]
+cmds = [
+  "cd server && npm install --production",
+  "cd server && npm rebuild sharp --build-from-source"
+]
 
 [phases.build]
 cmds = ["cd server && ls -la"]
