@@ -1654,7 +1654,7 @@ function generateMobileVerticalCSS(primaryColor, backgroundColor, textColor, car
   return generateHeroBannerCSS(primaryColor, backgroundColor, textColor, cardBg);
 }
 
-app.listen(port, () => {
+app.listen(port, '0.0.0.0', () => {
   console.log('='.repeat(60));
   console.log(`🚀 Server running at http://localhost:${port}`);
   console.log('='.repeat(60));
