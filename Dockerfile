@@ -1,19 +1,19 @@
-FROM node:20-slim
+FROM node:20-alpine
 
-# 必要なシステムパッケージをインストール
-RUN apt-get update && apt-get install -y \
-    libvips-dev \
-    build-essential \
-    python3 \
-    && rm -rf /var/lib/apt/lists/*
+# Alpine Linux用のパッケージをインストール
+RUN apk add --no-cache \
+    vips-dev \
+    build-base \
+    python3
 
 WORKDIR /app
 
 # serverディレクトリのpackage.jsonをコピー
 COPY server/package*.json ./server/
 
-# 依存関係をインストール
+# 依存関係をインストール（sharpは事前ビルド版を使用）
 WORKDIR /app/server
+RUN npm install --production --platform=linux --arch=x64 sharp
 RUN npm ci --production || npm install --production
 
 # アプリケーションコードをコピー
