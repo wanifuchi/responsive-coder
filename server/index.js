@@ -93,26 +93,46 @@ async function generateCodeFromDesigns(pcImage, spImage, referenceUrl = null) {
     const pcBase64 = await imageToBase64(pcImage);
     const spBase64 = await imageToBase64(spImage);
 
-    // OpenAI Vision APIを使用してデザインを解析
+    console.log('🎨 Starting detailed design analysis with GPT-4o...');
+    
+    // OpenAI Vision APIを使用してデザインを解析（最新のgpt-4oモデル使用）
     const response = await openai.chat.completions.create({
-      model: "gpt-4-vision-preview",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: `あなたは優秀なフロントエンドエンジニアです。
-提供されたPCとSPのデザイン画像から、レスポンシブなHTML/CSSコードを生成してください。
+          content: `あなたは世界最高レベルのUI/UXデザイナー兼フロントエンドエンジニアです。
 
-要件:
-1. セマンティックなHTML5を使用
-2. モダンなCSS（Flexbox、Grid）を活用
-3. モバイルファーストのアプローチ
-4. きれいで保守しやすいコード
-5. アクセシビリティを考慮
+提供された画像デザインを「ピクセル単位で正確に」分析し、視覚的に完全に一致するHTML/CSSコードを生成してください。
 
-レスポンスは以下のJSON形式で返してください:
+## 🔍 画像分析の重要なポイント：
+1. **レイアウト構造**: ヘッダー、ナビ、メインコンテンツ、サイドバー、フッターの配置
+2. **色彩情報**: 背景色、テキスト色、ボタン色、境界線色を正確に抽出
+3. **タイポグラフィ**: フォントサイズ、太さ、行間、文字間隔
+4. **要素サイズ**: ボタン、画像、余白、パディングの正確な数値
+5. **視覚効果**: 影、グラデーション、角丸、透明度
+6. **アイコン・画像**: SVGアイコンまたはプレースホルダー画像として再現
+
+## 💻 技術要件：
+- セマンティックHTML5（適切なheader、nav、main、section、article使用）
+- CSS Grid + Flexboxの効果的な組み合わせ
+- レスポンシブデザイン（モバイルファースト）
+- モダンCSS（カスタムプロパティ、論理プロパティ活用）
+- アクセシビリティ対応（ARIA属性、セマンティック要素）
+- 実際のプロダクトレベルのコード品質
+
+## 📱 レスポンシブ対応：
+- PC版（1200px以上）: 提供されたPCデザインに完全一致
+- タブレット版（768px-1199px）: 適切な中間レイアウト
+- モバイル版（767px以下）: 提供されたSPデザインに完全一致
+
+## 🎯 出力フォーマット：
+必ず以下のJSON形式で返答してください（JSONのみ、追加説明は不要）：
 {
-  "html": "HTMLコード",
-  "css": "CSSコード"
+  "html": "完全なHTMLコード（DOCTYPE、meta、title含む）",
+  "css": "完全なCSSコード（レスポンシブメディアクエリ含む）",
+  "js": "必要に応じたJavaScriptコード（インタラクション等）",
+  "analysis": "画像分析結果の詳細な説明"
 }`
         },
         {
@@ -120,7 +140,15 @@ async function generateCodeFromDesigns(pcImage, spImage, referenceUrl = null) {
           content: [
             {
               type: "text",
-              text: "以下のPCデザインとSPデザインから、レスポンシブなHTML/CSSを生成してください。"
+              text: `🖥️ **PCデザイン分析開始**
+
+以下のPCデザイン画像を詳細に分析してください：
+- レイアウト構造（グリッド、フレックス配置）
+- カラーパレット（背景、テキスト、アクセント色）
+- コンポーネント（ボタン、カード、ナビゲーション）
+- タイポグラフィ（見出し、本文、サイズ階層）
+- 余白・間隔（マージン、パディング）
+- 視覚的装飾（影、境界線、角丸など）`
             },
             {
               type: "image_url",
@@ -131,7 +159,16 @@ async function generateCodeFromDesigns(pcImage, spImage, referenceUrl = null) {
             },
             {
               type: "text",
-              text: "SPデザイン:"
+              text: `📱 **SPデザイン分析開始**
+
+以下のSPデザイン画像を詳細に分析してください：
+- モバイル向けレイアウト調整
+- コンテンツの積み重ね構造
+- ナビゲーションの変更（ハンバーガーメニューなど）
+- タッチフレンドリーなボタンサイズ
+- モバイル最適化された余白
+
+**重要**: 両画像のデザインを正確に再現し、完全に一致するコードを生成してください。`
             },
             {
               type: "image_url", 
@@ -139,16 +176,88 @@ async function generateCodeFromDesigns(pcImage, spImage, referenceUrl = null) {
                 url: spBase64,
                 detail: "high"
               }
-            }
-          ]
+            },
+            referenceUrl ? {
+              type: "text",
+              text: `🔗 **CRITICAL: 参考URL徹底活用**
+              
+**URL**: ${referenceUrl}
+
+**📋 URL分析タスク:**
+1. **構造分析**: このサイトのHTML構造、CSS設計パターンを研究
+2. **UI/UXパターン**: ナビゲーション、ボタン、カードデザインの実装方式
+3. **レスポンシブ手法**: メディアクエリ、ブレークポイントの設定方法
+4. **アニメーション・インタラクション**: ホバー効果、トランジション
+5. **タイポグラフィ**: フォント選択、サイズ階層、行間設定
+6. **色彩設計**: カラーパレット、コントラスト、配色理論
+
+**⚡ 重要指示:**
+- 提供された画像デザインを「主軸」として、参考URLの技術的な実装手法を「補完」に使用
+- 参考URLからは最新のベストプラクティスを抽出し、提供画像のデザインに適用
+- モダンなCSS手法（CSS Grid、Flexbox、カスタムプロパティ）を積極的に採用
+- 参考サイトのアクセシビリティ対応やSEO最適化も参考にする
+
+**🎯 最終目標:** 参考URLレベルの技術的完成度で、提供画像デザインを完璧再現`
+            } : null
+          ].filter(Boolean)
         }
       ],
-      max_tokens: 4000,
-      temperature: 0.7,
+      max_tokens: 6000,
+      temperature: 0.1, // より一貫した結果のため低い値に設定
     });
 
     const content = response.choices[0].message.content;
-    const result = JSON.parse(content);
+    console.log('🤖 OpenAI Response length:', content.length);
+    
+    // JSONレスポンスの抽出とパース（より堅牢な処理）
+    let result;
+    try {
+      // コードブロック内のJSONを抽出
+      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || 
+                       content.match(/```\s*([\s\S]*?)\s*```/) ||
+                       [null, content];
+      
+      const jsonContent = jsonMatch[1] || content;
+      result = JSON.parse(jsonContent.trim());
+      
+      // 必要なフィールドが存在するかチェック
+      if (!result.html || !result.css) {
+        throw new Error('Required fields (html, css) are missing from OpenAI response');
+      }
+      
+      // JavaScriptフィールドがない場合は空文字列を設定
+      if (!result.js) {
+        result.js = '';
+      }
+      
+      console.log('✅ Successfully parsed OpenAI response');
+      console.log('📊 Generated code stats:', {
+        htmlLength: result.html.length,
+        cssLength: result.css.length,
+        jsLength: result.js.length,
+        hasAnalysis: !!result.analysis
+      });
+      
+    } catch (parseError) {
+      console.error('❌ JSON parsing failed:', parseError);
+      console.log('🔍 Raw content sample:', content.substring(0, 500));
+      
+      // フォールバック: レスポンスからHTML/CSSを正規表現で抽出を試行
+      const htmlMatch = content.match(/(?:```html\s*|\bhtml["\s]*:\s*["\s]*)([\s\S]*?)(?:```|",?\s*\bcss)/i);
+      const cssMatch = content.match(/(?:```css\s*|\bcss["\s]*:\s*["\s]*)([\s\S]*?)(?:```|",?\s*(?:\bjs|\}|$))/i);
+      
+      if (htmlMatch && cssMatch) {
+        result = {
+          html: htmlMatch[1].trim().replace(/^["'`]|["'`]$/g, ''),
+          css: cssMatch[1].trim().replace(/^["'`]|["'`]$/g, ''),
+          js: '',
+          analysis: 'Extracted from malformed JSON response'
+        };
+        console.log('🔧 Recovered code using regex extraction');
+      } else {
+        throw new Error('Failed to parse OpenAI response and fallback extraction failed');
+      }
+    }
     
     return result;
   } catch (error) {
