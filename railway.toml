@@ -1,8 +1,10 @@
 [build]
 builder = "NIXPACKS"
+buildCommand = "cd server && npm install"
 
 [build.nixpacksConfig]
-node_version = "20"
+providers = ["nodejs"]
+nodeVersion = "20"
 
 [deploy]
 startCommand = "cd server && npm start"
