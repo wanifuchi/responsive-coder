@@ -57,56 +57,42 @@ if (hasValidOpenAIKey && !geminiModel) {
   });
 }
 
-// CORS設定
+// CORS設定 - より柔軟で強力な設定
 const corsOptions = {
-  origin: function (origin, callback) {
-    console.log('🌐 CORS Request from origin:', origin);
-    
-    const allowedOrigins = [
-      'http://localhost:5173',
-      'http://localhost:3000',
-      'https://responsive-coder.vercel.app',
-      process.env.FRONTEND_URL,
-      // Vercelのプレビューデプロイメント用
-      /^https:\/\/.*\.vercel\.app$/
-    ].filter(Boolean); // undefinedを除外
-    
-    console.log('✅ Allowed origins:', allowedOrigins);
-    
-    // 開発環境ではoriginがundefinedの場合がある
-    if (!origin) {
-      console.log('📝 No origin header (likely same-origin or tools), allowing...');
-      callback(null, true);
-      return;
-    }
-    
-    const isAllowed = allowedOrigins.some(allowed => {
-      if (allowed instanceof RegExp) {
-        const result = allowed.test(origin);
-        console.log(`🔍 Regex test ${allowed} against ${origin}: ${result}`);
-        return result;
-      }
-      const result = allowed === origin;
-      console.log(`🔍 Exact match ${allowed} against ${origin}: ${result}`);
-      return result;
-    });
-    
-    if (isAllowed) {
-      console.log('✅ CORS: Request allowed');
-      callback(null, true);
-    } else {
-      console.log('❌ CORS: Request blocked');
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: true, // 本番環境では全てのオリジンを許可（一時的な解決策）
   credentials: true,
   optionsSuccessStatus: 200,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'Accept',
+    'Origin',
+    'X-Requested-With',
+    'Access-Control-Request-Method',
+    'Access-Control-Request-Headers'
+  ],
+  exposedHeaders: ['Content-Length', 'X-Foo', 'X-Bar'],
+  preflightContinue: false,
 };
 
 // ミドルウェア
 app.use(cors(corsOptions));
+
+// 追加のCORSヘッダー設定（強制的に設定）
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
+
 app.use(express.json());
 
 // マルチパートフォームデータ処理用の設定
