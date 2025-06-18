@@ -1,14 +1,9 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "cd server && npm install"
-
-[build.nixpacksConfig]
-providers = ["nodejs"]
-nodeVersion = "20"
 
 [deploy]
-startCommand = "cd server && npm start"
-healthcheckPath = "/"
+startCommand = "cd server && node index.js"
+healthcheckPath = "/api/test-cors"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10

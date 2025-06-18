@@ -1,11 +1,14 @@
+# Node.js 20の明示的な指定
+providers = ["node"]
+
 [phases.setup]
-nixPkgs = ["nodejs_20"]
+nixPkgs = ["nodejs_20", "npm-9_x"]
 
 [phases.install]
-cmds = ["cd server && npm install"]
+cmds = ["cd server && npm ci || npm install"]
 
 [phases.build]
-cmds = ["cd server && npm run build || echo 'No build script'"]
+cmds = ["echo 'Server build completed'"]
 
 [start]
-cmd = "cd server && npm start"
+cmd = "cd server && node index.js"
