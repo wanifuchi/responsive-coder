@@ -102,10 +102,10 @@ function App() {
         if (referenceUrl) formData.append('referenceUrl', referenceUrl);
       }
 
-      const API_URL = import.meta.env.PROD 
-        ? import.meta.env.VITE_API_URL 
-        : '';
+      const API_URL = import.meta.env.VITE_API_URL || 
+        (import.meta.env.PROD ? 'https://responsive-coder-production.up.railway.app' : '');
       
+      console.log('API URL being used:', API_URL);
       const response = await fetch(`${API_URL}/api/generate-code`, {
         method: 'POST',
         body: formData

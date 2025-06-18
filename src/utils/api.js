@@ -1,7 +1,6 @@
 // API設定
-export const API_URL = import.meta.env.PROD 
-  ? import.meta.env.VITE_API_URL 
-  : '';
+export const API_URL = import.meta.env.VITE_API_URL || 
+  (import.meta.env.PROD ? 'https://responsive-coder-production.up.railway.app' : '');
 
 // APIヘルパー関数
 export const apiCall = async (endpoint, options = {}) => {
