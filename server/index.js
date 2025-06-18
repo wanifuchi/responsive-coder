@@ -4,7 +4,14 @@ import cors from 'cors';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs/promises';
-import sharp from 'sharp';
+// Sharp を条件付きでインポート
+let sharp = null;
+try {
+  sharp = (await import('sharp')).default;
+  console.log('✅ Sharp module loaded successfully');
+} catch (error) {
+  console.log('⚠️ Sharp module not available, using fallback image processing');
+}
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import dotenv from 'dotenv';
@@ -158,7 +165,13 @@ async function imageToBase64(buffer, maxSizeMB = 3.5) {
     
     // 4MB（実際は3.5MB）を超える場合は圧縮
     if (originalSize > maxSizeBytes) {
-      console.log('🔄 Image too large for Gemini API, compressing...');
+      if (sharp) {
+        console.log('🔄 Image too large for Gemini API, compressing...');
+      } else {
+        console.log('⚠️ Image too large but Sharp not available, using original image');
+        const base64 = buffer.toString('base64');
+        return base64;
+      }
       
       // 品質を調整しながら段階的に圧縮
       let quality = 90;
