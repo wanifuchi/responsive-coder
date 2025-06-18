@@ -102,10 +102,15 @@ function App() {
         if (referenceUrl) formData.append('referenceUrl', referenceUrl);
       }
 
-      const API_URL = import.meta.env.VITE_API_URL || 
-        (window.location.protocol === 'https:' ? 'https://responsive-coder-production.up.railway.app' : '');
+      // 一時的にハードコーディング（デバッグ用）
+      const API_URL = 'https://responsive-coder-production.up.railway.app';
       
       console.log('API URL being used:', API_URL);
+      console.log('Environment variables:', {
+        VITE_API_URL: import.meta.env.VITE_API_URL,
+        PROD: import.meta.env.PROD,
+        MODE: import.meta.env.MODE
+      });
       const response = await fetch(`${API_URL}/api/generate-code`, {
         method: 'POST',
         body: formData
