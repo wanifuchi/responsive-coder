@@ -102,16 +102,30 @@ async function imageToBase64(buffer) {
 // 画像を解析してHTML/CSSを生成
 async function generateCodeFromDesigns(pcImage, spImage, referenceUrl = null) {
   try {
-    // OpenAI APIが利用できない場合は高度なフォールバックを使用
+    // OpenAI APIが利用できない場合はシンプルなエラーメッセージ
     if (!openai) {
-      console.log('⚠️ OpenAI API key not configured, using ULTRA-ENHANCED fallback with detailed image analysis');
-      // エラーメッセージを含む高度な分析結果を返す
-      const analysisResult = await performDeepImageAnalysis(pcImage, spImage, referenceUrl);
+      console.error('❌ CRITICAL ERROR: OpenAI API key not configured!');
+      console.error('Please set OPENAI_API_KEY in Railway environment variables');
+      
+      // エラーを明確に示すHTML
       return {
-        html: analysisResult.html,
-        css: analysisResult.css,
-        js: analysisResult.js || '',
-        analysis: 'IMPORTANT: OpenAI API is not configured. Using enhanced image analysis fallback.'
+        html: `<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>APIキーエラー</title>
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px;">
+    <h1 style="color: #e74c3c;">❌ OpenAI APIキーが設定されていません</h1>
+    <p>RailwayでOPENAI_API_KEYを環境変数に設定してください。</p>
+    <p style="background: #f0f0f0; padding: 10px; font-family: monospace;">
+        OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx
+    </p>
+    <p>設定後、Railwayを再デプロイしてください。</p>
+</body>
+</html>`,
+        css: '',
+        js: ''
       };
     }
 
@@ -288,9 +302,36 @@ async function generateCodeFromDesigns(pcImage, spImage, referenceUrl = null) {
     return result;
   } catch (error) {
     console.error('OpenAI API Error:', error);
+    console.error('Error details:', error.message);
     
-    // フォールバック: 高度なテンプレートを返す
-    return await getAdvancedFallbackTemplate(pcImage, spImage, referenceUrl);
+    // APIエラーの詳細を返す
+    return {
+      html: `<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>APIエラー</title>
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px;">
+    <h1 style="color: #e74c3c;">⚠️ OpenAI API エラー</h1>
+    <p>コード生成中にエラーが発生しました。</p>
+    <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <p><strong>エラー内容:</strong></p>
+        <code style="color: #e74c3c;">${error.message}</code>
+    </div>
+    <p>考えられる原因:</p>
+    <ul>
+        <li>APIキーが無効</li>
+        <li>APIの利用上限に到達</li>
+        <li>ネットワークエラー</li>
+    </ul>
+    <p>Railway のログを確認してください。</p>
+</body>
+</html>`,
+      css: '',
+      js: '',
+      error: error.message
+    };
   }
 }
 
@@ -1381,7 +1422,24 @@ function generateMobileVerticalCSS(primaryColor, backgroundColor, textColor, car
 }
 
 app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
-  console.log("Supported file types: Images (PNG, JPG, GIF, etc.) and PDF");
-  console.log("Maximum file size: 50MB");
+  console.log('='.repeat(60));
+  console.log(`🚀 Server running at http://localhost:${port}`);
+  console.log('='.repeat(60));
+  console.log("📋 Configuration Status:");
+  console.log(`  - OpenAI API: ${openai ? '✅ ENABLED' : '❌ DISABLED'}`);
+  console.log(`  - API Key: ${process.env.OPENAI_API_KEY ? 
+    (process.env.OPENAI_API_KEY.startsWith('sk-') ? '✅ Valid format' : '❌ Invalid format') : 
+    '❌ Not set'}`);
+  console.log(`  - Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log('='.repeat(60));
+  console.log("📁 Supported file types: Images (PNG, JPG, GIF, etc.) and PDF");
+  console.log("📏 Maximum file size: 50MB");
+  console.log('='.repeat(60));
+  
+  if (!openai) {
+    console.error('⚠️  WARNING: OpenAI API is DISABLED!');
+    console.error('⚠️  Generated code will show error messages.');
+    console.error('⚠️  Please set OPENAI_API_KEY in environment variables.');
+    console.log('='.repeat(60));
+  }
 });
