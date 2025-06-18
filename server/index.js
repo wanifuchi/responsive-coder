@@ -82,15 +82,27 @@ app.use(cors(corsOptions));
 // 追加のCORSヘッダー設定（強制的に設定）
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Pragma');
   res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400');
   
+  // すべてのOPTIONSリクエストを最優先で処理
   if (req.method === 'OPTIONS') {
-    res.sendStatus(200);
+    console.log('🔵 OPTIONS request received for:', req.path);
+    return res.status(200).end();
   } else {
     next();
   }
+});
+
+// 全てのルートに対するOPTIONSハンドラー（フォールバック）
+app.options('*', (req, res) => {
+  console.log('🟢 Wildcard OPTIONS handler for:', req.path);
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.status(200).end();
 });
 
 app.use(express.json());
@@ -1639,6 +1651,13 @@ app.listen(port, () => {
   console.log("🤖 Vision API Priority: Gemini > OpenAI");
   console.log("📁 Supported file types: Images (PNG, JPG, GIF, etc.) and PDF");
   console.log("📏 Maximum file size: 50MB");
+  console.log('='.repeat(60));
+  console.log("🌐 CORS Configuration:");
+  console.log("  - Origin Policy: Allow ALL (*)");
+  console.log("  - Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH");
+  console.log("  - Headers: All common headers allowed");
+  console.log("  - Credentials: Enabled");
+  console.log("  - OPTIONS Handler: Active for all routes");
   console.log('='.repeat(60));
   
   if (!geminiModel && !openai) {
