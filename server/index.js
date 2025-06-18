@@ -6,6 +6,7 @@ import { dirname, join } from 'path';
 import fs from 'fs/promises';
 import sharp from 'sharp';
 import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import dotenv from 'dotenv';
 import { takeScreenshot, compareImages, iterateDesign } from './screenshot.js';
 import { convertPdfToImage, getPdfPageCount, cleanupTempFiles, convertPdfToMultipleImages, combineImagesVertically } from './pdfProcessor.js';
@@ -27,22 +28,33 @@ const __dirname = dirname(__filename);
 const app = express();
 const port = process.env.PORT || 3001;
 
-// OpenAI APIクライアントの初期化（APIキーが設定されている場合のみ）
-let openai = null;
-const hasValidApiKey = process.env.OPENAI_API_KEY && 
-                      process.env.OPENAI_API_KEY !== 'your_openai_api_key_here' &&
-                      process.env.OPENAI_API_KEY.startsWith('sk-');
+// Gemini APIクライアントの初期化
+let genAI = null;
+let geminiModel = null;
+const hasValidGeminiKey = process.env.GEMINI_API_KEY && 
+                          process.env.GEMINI_API_KEY.length > 20;
 
-if (hasValidApiKey) {
-  console.log('✅ OpenAI API key detected, initializing client...');
+if (hasValidGeminiKey) {
+  console.log('✅ Gemini API key detected, initializing client...');
+  genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  geminiModel = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
+} else {
+  console.log('⚠️ WARNING: Gemini API key not configured!');
+  console.log('  - Key exists:', !!process.env.GEMINI_API_KEY);
+  console.log('  - Please set GEMINI_API_KEY in environment variables');
+}
+
+// OpenAI APIクライアント（フォールバック用）
+let openai = null;
+const hasValidOpenAIKey = process.env.OPENAI_API_KEY && 
+                          process.env.OPENAI_API_KEY !== 'your_openai_api_key_here' &&
+                          process.env.OPENAI_API_KEY.startsWith('sk-');
+
+if (hasValidOpenAIKey && !geminiModel) {
+  console.log('📌 OpenAI API key detected as fallback...');
   openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
   });
-} else {
-  console.log('⚠️ WARNING: OpenAI API key not configured or invalid!');
-  console.log('  - Key exists:', !!process.env.OPENAI_API_KEY);
-  console.log('  - Key format:', process.env.OPENAI_API_KEY?.substring(0, 7) + '...');
-  console.log('  - Using ENHANCED image analysis fallback instead');
 }
 
 // CORS設定
@@ -102,33 +114,133 @@ async function imageToBase64(buffer) {
 // 画像を解析してHTML/CSSを生成
 async function generateCodeFromDesigns(pcImage, spImage, referenceUrl = null) {
   try {
-    // OpenAI APIが利用できない場合はシンプルなエラーメッセージ
-    if (!openai) {
-      console.error('❌ CRITICAL ERROR: OpenAI API key not configured!');
-      console.error('Please set OPENAI_API_KEY in Railway environment variables');
-      
-      // エラーを明確に示すHTML
-      return {
-        html: `<!DOCTYPE html>
+    // Gemini APIを優先的に使用
+    if (geminiModel) {
+      console.log('🌟 Using Gemini Pro Vision for image analysis...');
+      return await generateWithGemini(pcImage, spImage, referenceUrl);
+    }
+    
+    // OpenAI APIをフォールバックとして使用
+    if (openai) {
+      console.log('🔄 Falling back to OpenAI GPT-4o...');
+      return await generateWithOpenAI(pcImage, spImage, referenceUrl);
+    }
+    
+    // どちらのAPIも利用できない場合
+    console.error('❌ CRITICAL ERROR: No Vision API configured!');
+    return {
+      html: `<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <title>APIキーエラー</title>
 </head>
 <body style="font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px;">
-    <h1 style="color: #e74c3c;">❌ OpenAI APIキーが設定されていません</h1>
-    <p>RailwayでOPENAI_API_KEYを環境変数に設定してください。</p>
-    <p style="background: #f0f0f0; padding: 10px; font-family: monospace;">
-        OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx
-    </p>
+    <h1 style="color: #e74c3c;">❌ Vision APIキーが設定されていません</h1>
+    <p>以下のいずれかのAPIキーを環境変数に設定してください：</p>
+    <div style="background: #f0f0f0; padding: 15px; margin: 10px 0; border-radius: 5px;">
+        <strong>推奨: Google Gemini API</strong><br>
+        <code>GEMINI_API_KEY=your-gemini-api-key</code>
+    </div>
+    <div style="background: #f0f0f0; padding: 15px; margin: 10px 0; border-radius: 5px;">
+        <strong>代替: OpenAI API</strong><br>
+        <code>OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx</code>
+    </div>
     <p>設定後、Railwayを再デプロイしてください。</p>
 </body>
 </html>`,
-        css: '',
-        js: ''
-      };
-    }
+      css: '',
+      js: ''
+    };
+  } catch (error) {
+    console.error('Unexpected error in generateCodeFromDesigns:', error);
+    throw error;
+  }
+}
 
+// Gemini APIを使用したコード生成
+async function generateWithGemini(pcImage, spImage, referenceUrl) {
+  try {
+    // 画像をBase64に変換
+    const pcBase64 = await imageToBase64(pcImage);
+    const spBase64 = await imageToBase64(spImage);
+    
+    // Base64プレフィックスを削除（Gemini API用）
+    const pcImageData = pcBase64.split(',')[1];
+    const spImageData = spBase64.split(',')[1];
+    
+    // プロンプトの構築
+    const prompt = `あなたは世界最高レベルのUI/UXデザイナー兼フロントエンドエンジニアです。
+
+提供された2つの画像（PC版とスマートフォン版）のデザインを詳細に分析し、ピクセルパーフェクトなレスポンシブHTML/CSS/JavaScriptコードを生成してください。
+
+## 重要な指示:
+1. 画像のレイアウト、色、フォント、余白を正確に再現
+2. PC版は1200px以上、SP版は767px以下で完璧に表示
+3. 中間のタブレットサイズも考慮
+4. モダンなCSS（Grid、Flexbox、カスタムプロパティ）を使用
+5. セマンティックHTML5を使用
+6. 必要に応じてインタラクティブなJavaScriptを追加
+
+${referenceUrl ? `参考URL: ${referenceUrl} - このサイトの技術的実装も参考にしてください。` : ''}
+
+以下のJSON形式で回答してください：
+{
+  "html": "完全なHTMLコード（DOCTYPE含む）",
+  "css": "完全なCSSコード（レスポンシブ対応）",
+  "js": "JavaScriptコード（必要な場合）"
+}`;
+
+    // Gemini APIを呼び出し
+    const result = await geminiModel.generateContent([
+      prompt,
+      {
+        inlineData: {
+          mimeType: "image/png",
+          data: pcImageData
+        }
+      },
+      "上記はPC版デザインです。",
+      {
+        inlineData: {
+          mimeType: "image/png",
+          data: spImageData
+        }
+      },
+      "上記はスマートフォン版デザインです。これらを元にコードを生成してください。"
+    ]);
+    
+    const response = await result.response;
+    const text = response.text();
+    console.log('📊 Gemini response length:', text.length);
+    
+    // JSONを抽出
+    const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || 
+                     text.match(/```\s*([\s\S]*?)\s*```/) ||
+                     [null, text];
+    
+    const jsonContent = jsonMatch[1] || text;
+    const parsedResult = JSON.parse(jsonContent.trim());
+    
+    if (!parsedResult.html || !parsedResult.css) {
+      throw new Error('Invalid response format from Gemini');
+    }
+    
+    return {
+      html: parsedResult.html,
+      css: parsedResult.css,
+      js: parsedResult.js || ''
+    };
+    
+  } catch (error) {
+    console.error('Gemini API Error:', error);
+    throw error;
+  }
+}
+
+// OpenAI APIを使用したコード生成（既存のコードを関数化）
+async function generateWithOpenAI(pcImage, spImage, referenceUrl) {
+  try {
     // 画像をBase64に変換
     const pcBase64 = await imageToBase64(pcImage);
     const spBase64 = await imageToBase64(spImage);
@@ -1426,20 +1538,25 @@ app.listen(port, () => {
   console.log(`🚀 Server running at http://localhost:${port}`);
   console.log('='.repeat(60));
   console.log("📋 Configuration Status:");
-  console.log(`  - OpenAI API: ${openai ? '✅ ENABLED' : '❌ DISABLED'}`);
-  console.log(`  - API Key: ${process.env.OPENAI_API_KEY ? 
+  console.log(`  - Gemini API: ${geminiModel ? '✅ ENABLED (Primary)' : '❌ DISABLED'}`);
+  console.log(`  - Gemini Key: ${process.env.GEMINI_API_KEY ? 
+    (process.env.GEMINI_API_KEY.length > 20 ? '✅ Set' : '❌ Too short') : 
+    '❌ Not set'}`);
+  console.log(`  - OpenAI API: ${openai ? '✅ ENABLED (Fallback)' : '❌ DISABLED'}`);
+  console.log(`  - OpenAI Key: ${process.env.OPENAI_API_KEY ? 
     (process.env.OPENAI_API_KEY.startsWith('sk-') ? '✅ Valid format' : '❌ Invalid format') : 
     '❌ Not set'}`);
   console.log(`  - Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log('='.repeat(60));
+  console.log("🤖 Vision API Priority: Gemini > OpenAI");
   console.log("📁 Supported file types: Images (PNG, JPG, GIF, etc.) and PDF");
   console.log("📏 Maximum file size: 50MB");
   console.log('='.repeat(60));
   
-  if (!openai) {
-    console.error('⚠️  WARNING: OpenAI API is DISABLED!');
-    console.error('⚠️  Generated code will show error messages.');
-    console.error('⚠️  Please set OPENAI_API_KEY in environment variables.');
+  if (!geminiModel && !openai) {
+    console.error('⚠️  WARNING: No Vision API is configured!');
+    console.error('⚠️  Please set either GEMINI_API_KEY or OPENAI_API_KEY.');
+    console.error('⚠️  Recommend: GEMINI_API_KEY for better results.');
     console.log('='.repeat(60));
   }
 });
