@@ -21,8 +21,7 @@ function IterationPanel({ html, css, targetImage, onCodeUpdate }) {
     try {
       // まず現在のコードのスクリーンショットを取得
       console.log('Taking screenshot...');
-      const API_URL = import.meta.env.VITE_API_URL || 
-        (window.location.protocol === 'https:' ? 'https://responsive-coder-production.up.railway.app' : '');
+      const API_URL = 'https://responsive-coder-production.up.railway.app';
       
       const screenshotRes = await fetch(`${API_URL}/api/screenshot`, {
         method: 'POST',
