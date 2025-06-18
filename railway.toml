@@ -5,6 +5,7 @@ builder = "NIXPACKS"
 node_version = "20"
 
 [deploy]
+startCommand = "cd server && npm start"
 healthcheckPath = "/"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"

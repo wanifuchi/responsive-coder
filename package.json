@@ -5,10 +5,12 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "start": "cd server && npm install && npm start",
     "dev": "vite",
-    "build": "vite build",
+    "build": "cd server && npm install",
     "preview": "vite preview",
-    "deploy": "./deploy.sh"
+    "deploy": "./deploy.sh",
+    "server": "cd server && npm start"
   },
   "keywords": ["responsive", "design", "coding", "automation"],
   "author": "",
