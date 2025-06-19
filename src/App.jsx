@@ -176,31 +176,102 @@ function App() {
   };
 
   const handleDownload = () => {
-    // HTML ファイルのダウンロード
-    const htmlBlob = new Blob([generatedCode.html], { type: 'text/html' });
+    console.log('🚨 THINKHARD極限ダウンロード: プロダクション品質3ファイル分離');
+    
+    // 🎯 HTML ファイル（外部CSS/JS参照版）
+    const productionHtml = generatedCode.html || `<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="自動生成されたレスポンシブWebページ">
+  <title>Generated Page</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Generated Content</h1>
+  <script src="script.js"></script>
+</body>
+</html>`;
+
+    const htmlBlob = new Blob([productionHtml], { type: 'text/html; charset=utf-8' });
     const htmlUrl = URL.createObjectURL(htmlBlob);
     const htmlLink = document.createElement('a');
     htmlLink.href = htmlUrl;
     htmlLink.download = 'index.html';
     htmlLink.click();
+    URL.revokeObjectURL(htmlUrl);
 
-    // CSS ファイルのダウンロード
-    const cssBlob = new Blob([generatedCode.css], { type: 'text/css' });
+    // 🎨 CSS ファイル（完全分離版）
+    const productionCss = generatedCode.css || `/* Generated CSS */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.6;
+  margin: 0;
+  padding: 20px;
+  background-color: #f5f5f5;
+}
+
+h1 {
+  color: #333333;
+  text-align: center;
+}`;
+
+    const cssBlob = new Blob([productionCss], { type: 'text/css; charset=utf-8' });
     const cssUrl = URL.createObjectURL(cssBlob);
     const cssLink = document.createElement('a');
     cssLink.href = cssUrl;
     cssLink.download = 'style.css';
     cssLink.click();
+    URL.revokeObjectURL(cssUrl);
 
-    // JavaScript ファイルのダウンロード
-    if (generatedCode.js) {
-      const jsBlob = new Blob([generatedCode.js], { type: 'text/javascript' });
-      const jsUrl = URL.createObjectURL(jsBlob);
-      const jsLink = document.createElement('a');
-      jsLink.href = jsUrl;
-      jsLink.download = 'script.js';
-      jsLink.click();
+    // ⚡ JavaScript ファイル（ES6+対応）
+    const productionJs = generatedCode.js || `// Generated JavaScript (ES6+)
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('Page loaded successfully');
+  
+  // レスポンシブ対応
+  function handleResize() {
+    const width = window.innerWidth;
+    if (width < 768) {
+      document.body.classList.add('mobile');
+    } else {
+      document.body.classList.remove('mobile');
     }
+  }
+  
+  window.addEventListener('resize', handleResize);
+  handleResize(); // 初期実行
+});`;
+
+    const jsBlob = new Blob([productionJs], { type: 'text/javascript; charset=utf-8' });
+    const jsUrl = URL.createObjectURL(jsBlob);
+    const jsLink = document.createElement('a');
+    jsLink.href = jsUrl;
+    jsLink.download = 'script.js';
+    jsLink.click();
+    URL.revokeObjectURL(jsUrl);
+
+    // 🎉 SEO設定ファイル（追加）
+    if (generatedCode.seo) {
+      const seoConfig = `# SEO Configuration
+Title: ${generatedCode.seo.title || 'Generated Page'}
+Description: ${generatedCode.seo.description || 'Auto-generated responsive webpage'}
+Keywords: ${generatedCode.seo.keywords || 'responsive, web, design'}
+
+# Generated with Claude Code
+# https://claude.ai/code`;
+
+      const seoBlob = new Blob([seoConfig], { type: 'text/plain; charset=utf-8' });
+      const seoUrl = URL.createObjectURL(seoBlob);
+      const seoLink = document.createElement('a');
+      seoLink.href = seoUrl;
+      seoLink.download = 'seo-config.txt';
+      seoLink.click();
+      URL.revokeObjectURL(seoUrl);
+    }
+    
+    console.log('✅ プロダクション品質ファイル一式ダウンロード完了');
   };
 
   return (

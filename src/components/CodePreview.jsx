@@ -16,16 +16,50 @@ function CodePreview({ html, css }) {
           return;
         }
         
+        // 🚨 THINKHARD極限プレビュー: ファイル分離対応
+        let bodyContent = html;
+        
+        // HTMLが完全なドキュメントの場合は body部分のみ抽出
+        if (html.includes('<!DOCTYPE') || html.includes('<html')) {
+          const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+          if (bodyMatch) {
+            bodyContent = bodyMatch[1];
+          }
+        }
+        
         const content = `
           <!DOCTYPE html>
           <html lang="ja">
           <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <style>${css}</style>
+            <meta name="description" content="コードプレビュー">
+            <style>
+              /* 🎨 プレビュー専用スタイル統合 */
+              ${css}
+              
+              /* 🛡️ プレビュー安全化スタイル */
+              body {
+                margin: 0;
+                padding: 10px;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                background-color: #ffffff;
+                overflow-x: auto;
+              }
+              
+              /* レスポンシブ対応 */
+              @media (max-width: 768px) {
+                body { padding: 5px; }
+              }
+              
+              /* 色コードDNSエラー防止 */
+              [href*="ffffff"], [href*="333333"], [src*="ffffff"], [src*="333333"] {
+                pointer-events: none !important;
+              }
+            </style>
           </head>
           <body>
-            ${html}
+            ${bodyContent}
           </body>
           </html>
         `;

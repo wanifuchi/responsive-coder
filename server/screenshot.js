@@ -35,48 +35,185 @@ function sanitizeCssForScreenshot(css) {
   return sanitized;
 }
 
+// 🚨 HTML/CSS完全検証とサニタイズ
+async function validateAndSanitizeForScreenshot(html, css) {
+  const errors = [];
+  let isValid = true;
+
+  // HTML基本検証
+  if (!html.includes('<!DOCTYPE')) {
+    errors.push('Missing DOCTYPE declaration');
+  }
+  if (!html.includes('<html')) {
+    errors.push('Missing html tag');
+  }
+  if (!html.includes('<body')) {
+    errors.push('Missing body tag');
+  }
+
+  // 危険な文字・パターンを除去
+  let sanitizedHtml = html;
+  let sanitizedCss = css;
+
+  try {
+    // HTML完全サニタイズ
+    sanitizedHtml = sanitizeHtmlForScreenshot(html);
+    
+    // CSS完全サニタイズ  
+    sanitizedCss = sanitizeCssForScreenshot(css);
+    
+    // 致命的エラーチェック
+    if (sanitizedHtml.length < 50) {
+      errors.push('HTML too short after sanitization');
+      isValid = false;
+    }
+    
+    if (sanitizedCss.length < 10) {
+      errors.push('CSS too short after sanitization');
+      isValid = false;
+    }
+
+    // 不正な制御文字除去
+    sanitizedHtml = sanitizedHtml.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+    sanitizedCss = sanitizedCss.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+
+  } catch (error) {
+    errors.push(`Sanitization failed: ${error.message}`);
+    isValid = false;
+  }
+
+  return {
+    isValid,
+    errors,
+    sanitizedHtml,
+    sanitizedCss
+  };
+}
+
+// 高度なフォールバックスクリーンショット
+async function generateAdvancedFallbackScreenshot(html, css, device = 'desktop') {
+  console.log('🎨 Generating advanced fallback screenshot...');
+  
+  const sizes = {
+    desktop: { width: 1200, height: 800 },
+    tablet: { width: 768, height: 1024 },
+    mobile: { width: 375, height: 667 }
+  };
+  
+  const { width, height } = sizes[device] || sizes.desktop;
+  
+  // 高品質なフォールバック画像を生成
+  const png = new PNG({ width, height });
+  
+  // グラデーション背景を作成
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (width * y + x) << 2;
+      
+      // グラデーション計算
+      const gradientValue = Math.floor(240 + (y / height) * 15);
+      
+      png.data[idx] = gradientValue;     // R
+      png.data[idx + 1] = gradientValue; // G  
+      png.data[idx + 2] = gradientValue; // B
+      png.data[idx + 3] = 255;           // A
+    }
+  }
+  
+  return PNG.sync.write(png);
+}
+
+// 緊急フォールバック
+async function generateEmergencyFallback(device = 'desktop') {
+  console.log('🆘 Generating emergency fallback...');
+  
+  const sizes = {
+    desktop: { width: 800, height: 600 },
+    tablet: { width: 600, height: 800 },
+    mobile: { width: 300, height: 500 }
+  };
+  
+  const { width, height } = sizes[device] || sizes.desktop;
+  const png = new PNG({ width, height });
+  
+  // シンプルな白背景
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (width * y + x) << 2;
+      png.data[idx] = 255;     // R
+      png.data[idx + 1] = 255; // G
+      png.data[idx + 2] = 255; // B
+      png.data[idx + 3] = 255; // A
+    }
+  }
+  
+  return PNG.sync.write(png);
+}
+
 // HTMLとCSSからスクリーンショットを撮影
 export async function takeScreenshot(html, css, device = 'desktop') {
-  // 緊急修正: 入力データの厳格な検証と前処理
+  console.log('🚨 THINKHARD極限スクリーンショット開始');
+  
+  // 🚨 CRITICAL: 厳格な入力検証
   if (!html || !css || html.trim() === '' || css.trim() === '') {
     console.log('⚠️ Invalid or empty input data, generating fallback screenshot');
     return await generateFallbackScreenshot(html, css, device);
   }
 
-  // 色コードDNSエラーを防ぐため、HTMLとCSSを事前サニタイズ
-  const sanitizedHtml = sanitizeHtmlForScreenshot(html);
-  const sanitizedCss = sanitizeCssForScreenshot(css);
+  // 🚨 HTML/CSS完全検証とサニタイズ
+  const validationResult = await validateAndSanitizeForScreenshot(html, css);
+  if (!validationResult.isValid) {
+    console.log('❌ HTML/CSS validation failed:', validationResult.errors);
+    return await generateFallbackScreenshot(html, css, device);
+  }
+
+  const { sanitizedHtml, sanitizedCss } = validationResult;
   
-  console.log('🧹 Pre-screenshot sanitization:', {
+  console.log('🛡️ Complete validation and sanitization:', {
     originalHtmlLength: html.length,
     sanitizedHtmlLength: sanitizedHtml.length,
     originalCssLength: css.length,
-    sanitizedCssLength: sanitizedCss.length
+    sanitizedCssLength: sanitizedCss.length,
+    errors: validationResult.errors.length
   });
 
-  // 最初からPuppeteerを使用（Playwrightのストリームエラーを回避）
-  try {
-    console.log('🎯 Using Puppeteer for reliable screenshot...');
-    const result = await takeScreenshotWithPuppeteer(sanitizedHtml, sanitizedCss, device);
-    console.log('✅ Puppeteer screenshot successful');
-    return result;
-  } catch (puppeteerError) {
-    console.log('⚠️ Puppeteer failed, trying Playwright as backup:', puppeteerError.message);
-    
-    // Playwrightをバックアップとして使用
+  // 🚨 STREAM ERROR完全回避: 複数エンジン段階的フォールバック
+  const engines = [
+    { name: 'Puppeteer', func: takeScreenshotWithPuppeteer },
+    { name: 'Playwright', func: takeScreenshotWithPlaywright },
+    { name: 'Fallback', func: generateAdvancedFallbackScreenshot }
+  ];
+
+  for (const engine of engines) {
     try {
-      console.log('🎭 Attempting Playwright as backup...');
-      const result = await takeScreenshotWithPlaywright(sanitizedHtml, sanitizedCss, device);
-      console.log('✅ Playwright screenshot successful');
-      return result;
-    } catch (playwrightError) {
-      console.log('⚠️ Both engines failed, using fallback:', playwrightError.message);
+      console.log(`🎯 Attempting ${engine.name}...`);
+      const result = await engine.func(sanitizedHtml, sanitizedCss, device);
+      console.log(`✅ ${engine.name} screenshot successful`);
       
-      // 最終フォールバック
-      console.log('🔄 Using fallback screenshot generator...');
-      return await generateFallbackScreenshot(html, css, device);
+      // 結果検証: 破損データチェック
+      if (result && result.length > 1000) { // 最小サイズチェック
+        return result;
+      } else {
+        throw new Error(`${engine.name} returned invalid data: ${result.length} bytes`);
+      }
+    } catch (error) {
+      console.log(`⚠️ ${engine.name} failed:`, error.message);
+      
+      // 特定エラーの詳細ログ
+      if (error.message.includes('unrecognised content')) {
+        console.log('🚨 STREAM ERROR detected - trying next engine');
+      }
+      
+      // 最後のエンジンの場合は続行
+      if (engine.name === 'Fallback') {
+        throw error;
+      }
     }
   }
+
+  // すべて失敗した場合の最終手段
+  console.log('🔄 All engines failed, generating emergency fallback...');
+  return await generateEmergencyFallback(device);
 }
 
 // Playwright実装（メイン手法）

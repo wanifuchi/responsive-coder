@@ -248,75 +248,84 @@ async function generateWithGemini(pcImage, spImage, referenceUrl) {
       spSample: spImageData.substring(0, 50)
     });
     
-    // プロンプトの構築
+    // 🚨 THINKHARD極限プロンプト: SEO最高基準 + ファイル分離対応
     const prompt = `あなたは世界最高レベルのUI/UXデザイナー兼フロントエンドエンジニアです。
 
-**最重要ミッション**: 提供された画像デザインを100%忠実に再現すること
+**🎯 最重要ミッション**: プロダクション品質のSEO完全対応 + ファイル分離構造での100%忠実再現
 
-提供された2つの画像（PC版とスマートフォン版）を詳細に分析し、**ピクセル単位で完全に一致する**HTML/CSS/JavaScriptコードを生成してください。
+提供された2つの画像（PC版とスマートフォン版）を詳細に分析し、**商用サービス級のプロダクション品質**でHTML/CSS/JavaScriptコードを生成してください。
 
-## 絶対的な要求事項（MUST）:
+## 🚨 CRITICAL要件（MUST）:
 
-### 1. デザインの完全な忠実性 - これが最優先
-- **テキスト**: 画像内のすべてのテキストを正確に読み取り、一字一句同じように再現
-- **配色**: 画像内のすべての色を正確に抽出し、完全に同一の色コードを使用
-- **レイアウト**: 各要素の位置、サイズ、間隔を画像と完全に一致させる
-- **フォント**: 画像内のフォントサイズ、太さ、行間を正確に測定して再現
-- **構造**: セクションの順序、要素の配置を画像通りに再現
+### 1. **SEO最高基準対応** - サービス品質必須
+- **完全なメタタグセット**: title, description, keywords, viewport, robots
+- **Open Graphタグ**: og:title, og:description, og:image, og:url, og:type
+- **Twitter Cardタグ**: twitter:card, twitter:title, twitter:description, twitter:image
+- **構造化データ**: JSON-LD形式でWebsite/Organization/BreadcrumbListを含む
+- **正確なセマンティックHTML**: header, nav, main, section, article, aside, footer
+- **アクセシビリティ対応**: ARIA属性、適切なheading階層、alt属性
+- **パフォーマンス最適化**: 重要CSSのインライン化、画像最適化、非同期ロード
 
-### 2. 画像の処理 - ブランクは絶対禁止
-画像内に写真や画像要素がある場合:
-- 元の画像の内容を詳細に説明し、適切な代替画像URLを使用
-- 例: 人物写真 → "https://images.unsplash.com/photo-1234567890/sample.jpg" 
-- 例: 製品画像 → "https://via.placeholder.com/400x300/cccccc/ffffff?text=ProductName"
-- 例: アイコン → Font AwesomeやMaterial Iconsから最も近いものを選択
-- **決して空白のimg要素やbackground-imageを残さない**
+### 2. **完全ファイル分離構造** - インラインコード禁止
+HTMLは外部ファイル参照のみ:
+\`\`\`html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <!-- SEO完全対応メタタグ -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- セマンティックHTML -->
+  <script src="script.js"></script>
+</body>
+</html>
+\`\`\`
 
-### 2.5. 色コードの適切な処理 - DNS解決エラーの防止（重要）
-**絶対に守ること:**
-- **色コードは必ず#記号付きで記述**: color: #ffffff; background: #333333;
-- **URLとして解釈される記述を避ける**: url(#ffffff) は絶対禁止
-- **href属性に色コードを使用しない**: href="#ffffff" は絶対禁止
-- **class/id名に色コードを使用しない**: class="333333" は禁止
-- **JavaScriptでの色コード処理**: 必ず文字列として扱う "#ffffff"
-- **data属性に色コードを使用しない**: data-color="ffffff" は禁止
-- **CSSセレクタに色コードを使用しない**: .ffffff {} は禁止
+### 3. **実画像使用** - プレースホルダー禁止
+画像は必ず実際のUnsplash URLを使用:
+- 人物: https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop
+- ビジネス: https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop
+- 技術: https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=400&h=300&fit=crop
+- 自然: https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop
 
-**正しい例:**
-- CSS: color: #ffffff; background-color: #333333;
-- JS: const color = "#ffffff"; element.style.color = "#333333";
-- HTML: style="color: #ffffff; background: #333333;"
+### 4. **色コードDNS完全防止** - 致命的エラー根絶
+絶対に避ける:
+- ❌ href="ffffff" 
+- ❌ src="333333"
+- ❌ class="ffffff"
+- ❌ url(ffffff)
 
-### 3. 詳細な測定と再現
-- 各要素のサイズをピクセル単位で測定
-- マージンとパディングを正確に計算
-- 影、境界線、角丸の値を正確に抽出
-- グラデーションがある場合は開始色と終了色を正確に特定
+必ず正しい形式:
+- ✅ color: #ffffff;
+- ✅ href="#" または 実際のURL
+- ✅ class="meaningful-name"
 
-### 4. レスポンシブ実装
-- PC版: 提供された画像の幅（通常1200px以上）で完璧に表示
-- SP版: 提供された画像の幅（通常375px前後）で完璧に表示
-- 中間サイズ: 両者の間を自然に補間
+### 5. **デザイン完全忠実再現**
+- 画像内テキストの一字一句正確な再現
+- ピクセル単位での配置精度
+- 色の完全一致（#記号必須）
+- レスポンシブ対応（PC/SP完全対応）
 
-### 5. コード品質
-- セマンティックHTML5を使用
-- モダンCSS（Grid、Flexbox、カスタムプロパティ）を活用
-- 必要に応じてスムーズなアニメーションやインタラクションを追加
+### 6. **プロダクション品質コード**
+- TypeScript対応可能な構造
+- BEM命名規則
+- CSS Grid + Flexbox最適活用
+- ES6+モダンJavaScript
+- パフォーマンス最適化
 
-${referenceUrl ? `参考URL: ${referenceUrl} - このサイトの技術的実装も参考にしてください。` : ''}
+${referenceUrl ? `参考URL: ${referenceUrl} - このサイトの技術実装とSEO対策を参考にしてください。` : ''}
 
-**分析手順**:
-1. まず画像内のすべてのテキストを読み取る
-2. 使用されているすべての色を特定（背景色、テキスト色、ボーダー色など）
-3. レイアウト構造を完全に理解（グリッド、カラム数、セクション分割）
-4. 各要素の正確なサイズと位置を測定
-5. 画像要素の内容を理解し、適切な代替を用意
-
-以下のJSON形式で回答してください：
+**生成形式**:
 {
-  "html": "完全なHTMLコード（DOCTYPE含む、画像URLは実際のURLを使用）",
-  "css": "完全なCSSコード（抽出した正確な色とサイズを使用）",
-  "js": "JavaScriptコード（必要な場合）"
+  "html": "<!DOCTYPE html>から始まる完全なHTMLファイル（外部CSS/JS参照）",
+  "css": "完全に分離されたCSSファイル（HTMLから参照される）", 
+  "js": "完全に分離されたJavaScriptファイル（HTMLから参照される）",
+  "seo": {
+    "title": "ページタイトル",
+    "description": "メタディスクリプション",
+    "keywords": "キーワード1,キーワード2,キーワード3"
+  }
 }`;
 
     // Gemini APIを呼び出し
@@ -1644,46 +1653,84 @@ function sanitizeHTML(html) {
   let sanitized = html;
   let changesCount = 0;
   
-  // 1. 不正なhref属性を修正（色コード）- より慎重なマッチング
-  const hrefPattern1 = /href\s*=\s*["']\s*#?([0-9a-fA-F]{6})\s*["']/g;
-  sanitized = sanitized.replace(hrefPattern1, (match, colorCode) => {
+  console.log('🚨 EXTREME HTML SANITIZATION START');
+  
+  // 🚨 EMERGENCY: 極限サニタイズ - あらゆる色コードDNS解釈を完全防止
+  
+  // 1. 引用符なしの属性値での色コード（最も危険）
+  sanitized = sanitized.replace(/(\w+)\s*=\s*([0-9a-fA-F]{6})(\s|>|\/)/gi, (match, attr, colorCode, ending) => {
     changesCount++;
-    console.log(`Fixed href color code: ${match} -> href="#"`);
-    return 'href="#"';
+    console.log(`🚨 CRITICAL: Removed unquoted color code attribute: ${attr}=${colorCode}`);
+    if (attr.toLowerCase() === 'href') return `${attr}="#"${ending}`;
+    if (attr.toLowerCase() === 'src') return `${attr}="https://images.unsplash.com/photo-1557804506-669a67965ba0?w=400"${ending}`;
+    if (attr.toLowerCase() === 'class') return `${attr}="content-item"${ending}`;
+    if (attr.toLowerCase() === 'id') return `${attr}="element-${Math.random().toString(36).substr(2, 6)}"${ending}`;
+    return ending; // 属性自体を除去
   });
   
-  // 2. 色コードが直接src属性として使用されている場合のみ修正
-  const srcPattern = /src\s*=\s*["']\s*#?([0-9a-fA-F]{6})\s*["']/g;
-  sanitized = sanitized.replace(srcPattern, (match, colorCode) => {
-    changesCount++;
-    console.log(`Fixed src color code: ${match}`);
-    return 'src="https://via.placeholder.com/300x200/cccccc/ffffff?text=Image"';
+  // 2. 引用符付き属性値での色コード
+  const attributePatterns = [
+    { pattern: /href\s*=\s*["']\s*#?([0-9a-fA-F]{6})\s*["']/gi, replacement: 'href="#"' },
+    { pattern: /src\s*=\s*["']\s*#?([0-9a-fA-F]{6})\s*["']/gi, replacement: 'src="https://images.unsplash.com/photo-1557804506-669a67965ba0?w=400"' },
+    { pattern: /action\s*=\s*["']\s*#?([0-9a-fA-F]{6})\s*["']/gi, replacement: 'action="#"' },
+    { pattern: /formaction\s*=\s*["']\s*#?([0-9a-fA-F]{6})\s*["']/gi, replacement: 'formaction="#"' },
+    { pattern: /class\s*=\s*["']\s*([0-9a-fA-F]{6})\s*["']/gi, replacement: 'class="content-item"' },
+    { pattern: /id\s*=\s*["']\s*([0-9a-fA-F]{6})\s*["']/gi, replacement: (match) => `id="element-${Math.random().toString(36).substr(2, 6)}"` },
+    { pattern: /name\s*=\s*["']\s*([0-9a-fA-F]{6})\s*["']/gi, replacement: 'name="form-field"' },
+    { pattern: /value\s*=\s*["']\s*([0-9a-fA-F]{6})\s*["']/gi, replacement: 'value=""' },
+    { pattern: /placeholder\s*=\s*["']\s*([0-9a-fA-F]{6})\s*["']/gi, replacement: 'placeholder="テキストを入力"' },
+    { pattern: /alt\s*=\s*["']\s*([0-9a-fA-F]{6})\s*["']/gi, replacement: 'alt="画像"' },
+    { pattern: /title\s*=\s*["']\s*([0-9a-fA-F]{6})\s*["']/gi, replacement: 'title="コンテンツ"' },
+    { pattern: /data-[^=]*\s*=\s*["']\s*#?([0-9a-fA-F]{6})\s*["']/gi, replacement: 'data-value="#cccccc"' }
+  ];
+  
+  attributePatterns.forEach(({ pattern, replacement }, index) => {
+    sanitized = sanitized.replace(pattern, (match, colorCode) => {
+      changesCount++;
+      console.log(`🛡️ Fixed attribute pattern ${index}: ${match}`);
+      return typeof replacement === 'function' ? replacement(match) : replacement;
+    });
   });
   
-  // 3. 色コードがclass名/id名として使用されている場合のみ修正
-  const classPattern = /class\s*=\s*["']\s*([0-9a-fA-F]{6})\s*["']/g;
-  sanitized = sanitized.replace(classPattern, (match, colorCode) => {
-    changesCount++;
-    console.log(`Fixed class color code: ${match}`);
-    return 'class="generated-element"';
+  // 3. style属性の完全サニタイズ
+  sanitized = sanitized.replace(/style\s*=\s*["']([^"']*)["']/gi, (match, styleContent) => {
+    let fixedStyle = styleContent;
+    
+    // 色プロパティで#がない場合に追加
+    const colorProps = ['color', 'background-color', 'background', 'border-color', 'outline-color', 'box-shadow', 'text-shadow'];
+    colorProps.forEach(prop => {
+      const regex = new RegExp(`(${prop})\\s*:\\s*([0-9a-fA-F]{6})`, 'gi');
+      fixedStyle = fixedStyle.replace(regex, (colorMatch, property, colorCode) => {
+        changesCount++;
+        console.log(`🎨 Fixed style ${property}: ${colorCode} -> #${colorCode}`);
+        return `${property}: #${colorCode}`;
+      });
+    });
+    
+    // URLとして解釈される可能性のある値を除去
+    fixedStyle = fixedStyle.replace(/url\s*\(\s*([0-9a-fA-F]{6})\s*\)/gi, 'none');
+    
+    return `style="${fixedStyle}"`;
   });
   
-  const idPattern = /id\s*=\s*["']\s*([0-9a-fA-F]{6})\s*["']/g;
-  sanitized = sanitized.replace(idPattern, (match, colorCode) => {
+  // 4. テキストコンテンツ内の単独色コードを完全除去
+  sanitized = sanitized.replace(/>(\s*)([0-9a-fA-F]{6})(\s*)</gi, (match, beforeSpace, colorCode, afterSpace) => {
     changesCount++;
-    console.log(`Fixed id color code: ${match}`);
-    return 'id="generated-element"';
+    console.log(`🗑️ Removed standalone color code in text: ${colorCode}`);
+    return `>${beforeSpace}${afterSpace}<`;
   });
   
-  // 4. style属性内の色コード修正（#を追加）
-  const stylePattern = /style\s*=\s*["']([^"']*color\s*:\s*)([0-9a-fA-F]{6})([^"']*)["']/g;
-  sanitized = sanitized.replace(stylePattern, (match, before, colorCode, after) => {
-    changesCount++;
-    console.log(`Fixed style color code: ${colorCode} -> #${colorCode}`);
-    return `style="${before}#${colorCode}${after}"`;
+  // 5. HTMLコメント内の色コードも除去
+  sanitized = sanitized.replace(/<!--[^>]*([0-9a-fA-F]{6})[^>]*-->/gi, '<!-- サニタイズ済みコメント -->');
+  
+  // 6. JavaScript/CSS内の色コード文字列も修正
+  sanitized = sanitized.replace(/<script[^>]*>([\s\S]*?)<\/script>/gi, (match, jsContent) => {
+    let fixedJs = jsContent;
+    fixedJs = fixedJs.replace(/["']([0-9a-fA-F]{6})["']/gi, '"#$1"');
+    return match.replace(jsContent, fixedJs);
   });
   
-  console.log(`🧹 HTML sanitization: ${changesCount} changes made`);
+  console.log(`🚨 EXTREME HTML sanitization completed: ${changesCount} total changes`);
   return sanitized;
 }
 
