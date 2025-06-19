@@ -251,10 +251,10 @@ async function generateWithGemini(pcImage, spImage, referenceUrl) {
 - **決して空白のimg要素やbackground-imageを残さない**
 
 ### 2.5. 色コードの適切な処理 - DNS解決エラーの防止
-- **色コードは必ず#記号付きで記述**: 例 `color: #ffffff;`
-- **URLとして解釈される記述を避ける**: `url(#ffffff)` などは使用禁止
-- **href属性に色コードを使用しない**: `href="#ffffff"` は禁止
-- **JavaScriptでの色コード処理**: 必ず文字列として扱う `"#ffffff"`
+- **色コードは必ず#記号付きで記述**: 例 color: #ffffff;
+- **URLとして解釈される記述を避ける**: url(#ffffff) などは使用禁止
+- **href属性に色コードを使用しない**: href="#ffffff" は禁止
+- **JavaScriptでの色コード処理**: 必ず文字列として扱う "#ffffff"
 
 ### 3. 詳細な測定と再現
 - 各要素のサイズをピクセル単位で測定
