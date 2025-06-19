@@ -1209,6 +1209,19 @@ app.options("/api/generate-code", (req, res) => {
 // コード生成エンドポイント
 app.post("/api/generate-code", upload.any(), async (req, res) => {
   try {
+    console.log('📝 Request received:', { 
+      mode: req.body.mode, 
+      filesCount: req.files ? req.files.length : 0 
+    });
+    
+    // req.filesが存在しない場合のエラーハンドリング
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ 
+        error: "画像ファイルがアップロードされていません",
+        details: "PC/SP両方のデザイン画像をアップロードしてください"
+      });
+    }
+    
     const mode = req.body.mode || "single";
     const referenceUrl = req.body.referenceUrl || null;
 
