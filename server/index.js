@@ -782,16 +782,6 @@ function detectColumns(section) {
   return Math.min(significantChanges + 1, 4); // 最大4カラム
 }
 
-// 主要な色を抽出
-function extractDominantColors(stats) {
-  const { dominant, channels } = stats;
-  
-  return {
-    primary: `rgb(${dominant.r}, ${dominant.g}, ${dominant.b})`,
-    isDark: (dominant.r + dominant.g + dominant.b) / 3 < 128,
-    hasHighContrast: Math.max(...channels.map(ch => ch.stdev)) > 100
-  };
-}
 
 // ピクセルパーフェクトなコード生成
 function generatePixelPerfectCode(pcAnalysis, spAnalysis, referenceData) {
