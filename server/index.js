@@ -1538,10 +1538,10 @@ function sanitizeJS(js) {
   return sanitized;
 }
 
-// フォールバック画像生成
+// フォールバック画像生成（Canvas不使用版）
 async function generateFallbackPreview(device = 'desktop') {
   try {
-    const { createCanvas } = await import('canvas');
+    const { PNG } = await import('pngjs');
     
     const sizes = {
       desktop: { width: 1200, height: 800 },
@@ -1550,29 +1550,20 @@ async function generateFallbackPreview(device = 'desktop') {
     };
     
     const { width, height } = sizes[device] || sizes.desktop;
-    const canvas = createCanvas(width, height);
-    const ctx = canvas.getContext('2d');
+    const png = new PNG({ width, height });
     
-    // グラデーション背景
-    const gradient = ctx.createLinearGradient(0, 0, width, height);
-    gradient.addColorStop(0, '#f8f9fa');
-    gradient.addColorStop(1, '#e9ecef');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, width, height);
+    // グレー背景で塗りつぶし
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = (width * y + x) << 2;
+        png.data[idx] = 240;     // R
+        png.data[idx + 1] = 240; // G
+        png.data[idx + 2] = 240; // B
+        png.data[idx + 3] = 255; // A
+      }
+    }
     
-    // エラーメッセージ
-    ctx.fillStyle = '#6c757d';
-    ctx.font = 'bold 24px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('Preview Generation Failed', width / 2, height / 2 - 40);
-    
-    ctx.font = '16px Arial';
-    ctx.fillText('Using fallback preview for ' + device, width / 2, height / 2);
-    
-    ctx.font = '14px Arial';
-    ctx.fillText('Please check server logs for details', width / 2, height / 2 + 30);
-    
-    return canvas.toBuffer('image/png');
+    return PNG.sync.write(png);
   } catch (error) {
     console.error('Failed to generate fallback preview:', error);
     throw error;

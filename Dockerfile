@@ -1,22 +1,19 @@
 FROM node:20-alpine
 
-# Puppeteer用の依存関係をインストール
+# Playwright/Puppeteer用の依存関係をインストール
 RUN apk add --no-cache \
     chromium \
     nss \
     freetype \
     harfbuzz \
     ca-certificates \
-    ttf-freefont \
-    cairo-dev \
-    jpeg-dev \
-    pango-dev \
-    giflib-dev \
-    pixman-dev
+    ttf-freefont
 
-# Puppeteerが使用するChromiumのパスを指定
+# Puppeteer/Playwright用の環境変数
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser \
+    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
+    PLAYWRIGHT_BROWSERS_PATH=0
 
 WORKDIR /app/server
 

@@ -1,3 +1,4 @@
+import { chromium } from 'playwright';
 import puppeteer from 'puppeteer';
 import { PNG } from 'pngjs';
 import pixelmatch from 'pixelmatch';
@@ -6,41 +7,110 @@ import path from 'path';
 
 // HTMLとCSSからスクリーンショットを撮影
 export async function takeScreenshot(html, css, device = 'desktop') {
-  // まずフォールバック手法を試行
+  // まずPlaywrightを試行
   try {
-    return await takeScreenshotWithFallback(html, css, device);
-  } catch (fallbackError) {
-    console.log('⚠️ Fallback method failed, trying Puppeteer...', fallbackError.message);
-    return await takeScreenshotWithPuppeteer(html, css, device);
+    return await takeScreenshotWithPlaywright(html, css, device);
+  } catch (playwrightError) {
+    console.log('⚠️ Playwright failed, trying Puppeteer...', playwrightError.message);
+    try {
+      return await takeScreenshotWithPuppeteer(html, css, device);
+    } catch (puppeteerError) {
+      console.log('⚠️ Puppeteer failed, using fallback...', puppeteerError.message);
+      return await generateFallbackScreenshot(html, css, device);
+    }
   }
 }
 
-// フォールバック: サーバーサイドレンダリング
-async function takeScreenshotWithFallback(html, css, device = 'desktop') {
-  const { createCanvas } = await import('canvas');
+// Playwright実装（メイン手法）
+async function takeScreenshotWithPlaywright(html, css, device = 'desktop') {
+  console.log('🎭 Starting Playwright screenshot for:', device);
   
-  // デバイスに応じたサイズ設定
+  const browser = await chromium.launch({
+    executablePath: '/usr/bin/chromium-browser',
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--disable-gpu',
+      '--disable-background-timer-throttling',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-renderer-backgrounding'
+    ]
+  });
+
+  try {
+    const page = await browser.newPage();
+
+    // デバイスに応じたビューポートを設定
+    const viewports = {
+      desktop: { width: 1920, height: 1080 },
+      tablet: { width: 768, height: 1024 },
+      mobile: { width: 375, height: 812 }
+    };
+
+    await page.setViewportSize(viewports[device] || viewports.desktop);
+
+    // HTMLコンテンツを設定
+    const content = `
+      <!DOCTYPE html>
+      <html lang="ja">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>${css}</style>
+      </head>
+      <body>
+        ${html}
+      </body>
+      </html>
+    `;
+
+    await page.setContent(content, {
+      waitUntil: 'networkidle'
+    });
+
+    // スクリーンショットを撮影
+    const screenshot = await page.screenshot({
+      fullPage: true,
+      type: 'png'
+    });
+
+    return screenshot;
+  } finally {
+    await browser.close();
+  }
+}
+
+// 基本的なフォールバック画像生成
+async function generateFallbackScreenshot(html, css, device = 'desktop') {
+  console.log('🔄 Generating fallback screenshot for:', device);
+  
   const sizes = {
-    desktop: { width: 1920, height: 1080 },
+    desktop: { width: 1200, height: 800 },
     tablet: { width: 768, height: 1024 },
-    mobile: { width: 375, height: 812 }
+    mobile: { width: 375, height: 667 }
   };
   
   const { width, height } = sizes[device] || sizes.desktop;
-  const canvas = createCanvas(width, height);
-  const ctx = canvas.getContext('2d');
   
-  // 基本的な背景を描画
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, width, height);
+  // 簡易的なPNG画像を生成
+  const png = new PNG({ width, height });
   
-  // 簡易的なコンテンツ表示（改善の余地あり）
-  ctx.fillStyle = '#333333';
-  ctx.font = '16px Arial';
-  ctx.fillText('Generated Preview', 50, 50);
-  ctx.fillText('Device: ' + device, 50, 80);
+  // 白い背景で塗りつぶし
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (width * y + x) << 2;
+      png.data[idx] = 248;     // R
+      png.data[idx + 1] = 249; // G
+      png.data[idx + 2] = 250; // B
+      png.data[idx + 3] = 255; // A
+    }
+  }
   
-  return canvas.toBuffer('image/png');
+  return PNG.sync.write(png);
 }
 
 // Puppeteer実装（バックアップ）
