@@ -1265,7 +1265,12 @@ app.post("/api/generate-code", upload.any(), async (req, res) => {
     }
   } catch (error) {
     console.error("Error generating code:", error);
-    res.status(500).json({ error: "コード生成中にエラーが発生しました" });
+    console.error('Error stack:', error.stack);
+    const errorMessage = error.message || 'Unknown error';
+    res.status(500).json({ 
+      error: "コード生成中にエラーが発生しました",
+      details: errorMessage
+    });
   }
 });
 
