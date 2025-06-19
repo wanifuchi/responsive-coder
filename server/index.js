@@ -215,9 +215,9 @@ async function generateWithGemini(pcImage, spImage, referenceUrl) {
     const pcBase64 = await imageToBase64WithJimp(pcImage);
     const spBase64 = await imageToBase64WithJimp(spImage);
     
-    // Base64プレフィックスを削除（Gemini API用）
-    const pcImageData = pcBase64.split(',')[1];
-    const spImageData = spBase64.split(',')[1];
+    // Base64データを直接使用（既にプレフィックスなし）
+    const pcImageData = pcBase64.includes(',') ? pcBase64.split(',')[1] : pcBase64;
+    const spImageData = spBase64.includes(',') ? spBase64.split(',')[1] : spBase64;
     
     // プロンプトの構築
     const prompt = `あなたは世界最高レベルのUI/UXデザイナー兼フロントエンドエンジニアです。
@@ -246,14 +246,14 @@ ${referenceUrl ? `参考URL: ${referenceUrl} - このサイトの技術的実装
       prompt,
       {
         inlineData: {
-          mimeType: "image/png",
+          mimeType: "image/jpeg",
           data: pcImageData
         }
       },
       "上記はPC版デザインです。",
       {
         inlineData: {
-          mimeType: "image/png",
+          mimeType: "image/jpeg",
           data: spImageData
         }
       },
