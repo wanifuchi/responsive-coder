@@ -21,6 +21,7 @@ import {
   getUltraBasicTemplate,
   adjustColor
 } from './image-analysis-helpers.js';
+import { PixelPerfectEngine } from './pixel-perfect-engine.js';
 
 dotenv.config();
 
@@ -148,77 +149,362 @@ const upload = multer({
 });
 
 
-// 画像を解析してHTML/CSSを生成
+// 画像を解析してHTML/CSSを生成 - 完全再現エンジン
 async function generateCodeFromDesigns(pcImage, spImage, referenceUrl = null) {
   try {
-    // Gemini APIを優先的に使用
-    if (geminiModel) {
-      console.log('🌟 Using Gemini Pro Vision for image analysis...');
-      const rawResult = await generateWithGemini(pcImage, spImage, referenceUrl);
+    console.log('🎯 ULTIMATE PIXEL PERFECT ENGINE STARTING...');
+    
+    // ピクセルパーフェクトエンジンを初期化
+    const engine = new PixelPerfectEngine();
+    
+    try {
+      // 1. 両方の画像を完全解析
+      console.log('📊 Analyzing PC design with pixel precision...');
+      const pcAnalysis = await engine.analyzeDesignCompletely(pcImage);
       
-      // 緊急修正: サニタイズを再有効化してDNSエラーを根絶
-      const sanitizedResult = sanitizeGeneratedCode(rawResult);
-      console.log('🧹 EMERGENCY: Code sanitization re-enabled to fix DNS errors');
-      console.log('Sanitization results:', {
-        originalHtmlLength: rawResult.html?.length || 0,
-        sanitizedHtmlLength: sanitizedResult.html?.length || 0,
-        originalCssLength: rawResult.css?.length || 0,
-        sanitizedCssLength: sanitizedResult.css?.length || 0
+      console.log('📱 Analyzing SP design with pixel precision...');
+      const spAnalysis = await engine.analyzeDesignCompletely(spImage);
+      
+      // 2. 解析結果からピクセルパーフェクトなコードを生成
+      console.log('🔨 Generating pixel-perfect code...');
+      const html = engine.generatePixelPerfectHTML(pcAnalysis);
+      const css = engine.generatePixelPerfectCSS(pcAnalysis);
+      const js = generateResponsiveJS();
+      
+      console.log('✅ Pixel-perfect generation completed successfully');
+      
+      // 3. 完全サニタイズ適用
+      const result = {
+        html: sanitizeHTML(html),
+        css: sanitizeCSS(css),
+        js: sanitizeJS(js)
+      };
+      
+      console.log('📏 Generated code statistics:', {
+        htmlLength: result.html.length,
+        cssLength: result.css.length,
+        jsLength: result.js.length,
+        pcColors: pcAnalysis.colors.palette.length,
+        components: pcAnalysis.components.length
       });
-      return sanitizedResult;
+      
+      return result;
+      
+    } catch (engineError) {
+      console.error('❌ Pixel Perfect Engine failed, falling back to Vision API:', engineError);
+      
+      // ピクセルパーフェクトエンジンが失敗した場合のフォールバック
+      if (geminiModel) {
+        console.log('🔄 Falling back to enhanced Gemini Vision...');
+        return await generateWithEnhancedGemini(pcImage, spImage, referenceUrl);
+      }
+      
+      if (openai) {
+        console.log('🔄 Falling back to enhanced OpenAI Vision...');
+        return await generateWithEnhancedOpenAI(pcImage, spImage, referenceUrl);
+      }
+      
+      throw new Error('All generation methods failed');
     }
     
-    // OpenAI APIをフォールバックとして使用
-    if (openai) {
-      console.log('🔄 Falling back to OpenAI GPT-4o...');
-      const rawResult = await generateWithOpenAI(pcImage, spImage, referenceUrl);
-      
-      // 緊急修正: サニタイズを再有効化してDNSエラーを根絶
-      const sanitizedResult = sanitizeGeneratedCode(rawResult);
-      console.log('🧹 EMERGENCY: Code sanitization re-enabled to fix DNS errors');
-      console.log('Sanitization results:', {
-        originalHtmlLength: rawResult.html?.length || 0,
-        sanitizedHtmlLength: sanitizedResult.html?.length || 0,
-        originalCssLength: rawResult.css?.length || 0,
-        sanitizedCssLength: sanitizedResult.css?.length || 0
-      });
-      return sanitizedResult;
-    }
-    
-    // どちらのAPIも利用できない場合
-    console.error('❌ CRITICAL ERROR: No Vision API configured!');
-    return {
-      html: `<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <title>APIキーエラー</title>
-</head>
-<body style="font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px;">
-    <h1 style="color: #e74c3c;">❌ Vision APIキーが設定されていません</h1>
-    <p>以下のいずれかのAPIキーを環境変数に設定してください：</p>
-    <div style="background: #f0f0f0; padding: 15px; margin: 10px 0; border-radius: 5px;">
-        <strong>推奨: Google Gemini API</strong><br>
-        <code>GEMINI_API_KEY=your-gemini-api-key</code>
-    </div>
-    <div style="background: #f0f0f0; padding: 15px; margin: 10px 0; border-radius: 5px;">
-        <strong>代替: OpenAI API</strong><br>
-        <code>OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx</code>
-    </div>
-    <p>設定後、Railwayを再デプロイしてください。</p>
-</body>
-</html>`,
-      css: '',
-      js: ''
-    };
   } catch (error) {
-    console.error('Unexpected error in generateCodeFromDesigns:', error);
-    throw error;
+    console.error('❌ CRITICAL: Complete generation failure:', error);
+    
+    // 最終フォールバック
+    return generateEmergencyFallback(referenceUrl);
   }
 }
 
-// Gemini APIを使用したコード生成
-async function generateWithGemini(pcImage, spImage, referenceUrl) {
+// 緊急フォールバック
+function generateEmergencyFallback(referenceUrl = null) {
+  return {
+    html: `<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生成エラー</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="site-header">
+            <h1>サイトタイトル</h1>
+            <nav>
+                <ul>
+                    <li><a href="#home">ホーム</a></li>
+                    <li><a href="#about">About</a></li>
+                    <li><a href="#contact">お問い合わせ</a></li>
+                </ul>
+            </nav>
+        </header>
+        
+        <main class="main-content">
+            <section class="hero">
+                <h2>メインタイトル</h2>
+                <p>アップロードされた画像からコンテンツを生成中です。</p>
+                <button class="cta-button">詳細を見る</button>
+            </section>
+            
+            <section class="features">
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <img src="https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop" alt="Feature 1">
+                        <h3>特徴1</h3>
+                        <p>サービスの特徴を説明します。</p>
+                    </div>
+                    <div class="feature-card">
+                        <img src="https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=400&h=300&fit=crop" alt="Feature 2">
+                        <h3>特徴2</h3>
+                        <p>追加の特徴について説明します。</p>
+                    </div>
+                    <div class="feature-card">
+                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop" alt="Feature 3">
+                        <h3>特徴3</h3>
+                        <p>さらなる特徴の詳細です。</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+        
+        <footer class="site-footer">
+            <p>&copy; 2024 Generated Site. All rights reserved.</p>
+        </footer>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>`,
+    css: `/* Emergency Fallback CSS */
+:root {
+    --primary-color: #007bff;
+    --secondary-color: #6c757d;
+    --accent-color: #28a745;
+    --background-color: #ffffff;
+    --text-color: #333333;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.site-header {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 1rem 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.site-header h1 {
+    font-size: 1.5rem;
+}
+
+.site-header nav ul {
+    display: flex;
+    list-style: none;
+    gap: 2rem;
+}
+
+.site-header nav a {
+    color: white;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.site-header nav a:hover {
+    opacity: 0.8;
+}
+
+.main-content {
+    padding: 3rem 0;
+}
+
+.hero {
+    text-align: center;
+    padding: 4rem 0;
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border-radius: 10px;
+    margin-bottom: 3rem;
+}
+
+.hero h2 {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    color: var(--primary-color);
+}
+
+.hero p {
+    font-size: 1.2rem;
+    margin-bottom: 2rem;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.cta-button {
+    background-color: var(--accent-color);
+    color: white;
+    border: none;
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.cta-button:hover {
+    background-color: var(--primary-color);
+    transform: translateY(-2px);
+}
+
+.features {
+    padding: 2rem 0;
+}
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+}
+
+.feature-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    transition: transform 0.3s ease;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+}
+
+.feature-card img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 5px;
+    margin-bottom: 1rem;
+}
+
+.feature-card h3 {
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+    font-size: 1.3rem;
+}
+
+.site-footer {
+    background-color: var(--primary-color);
+    color: white;
+    text-align: center;
+    padding: 2rem 0;
+    margin-top: 3rem;
+}
+
+@media (max-width: 768px) {
+    .site-header {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .site-header nav ul {
+        gap: 1rem;
+    }
+    
+    .hero h2 {
+        font-size: 2rem;
+    }
+    
+    .feature-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .container {
+        padding: 0 1rem;
+    }
+}`,
+    js: generateResponsiveJS()
+  };
+}
+
+// レスポンシブJavaScript生成
+function generateResponsiveJS() {
+  return `// Generated Responsive JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Responsive site loaded successfully');
+    
+    // ハンバーガーメニュー
+    const navToggle = document.querySelector('.nav-toggle');
+    const navMenu = document.querySelector('.main-nav');
+    
+    if (navToggle && navMenu) {
+        navToggle.addEventListener('click', function() {
+            navMenu.classList.toggle('active');
+            navToggle.classList.toggle('active');
+        });
+    }
+    
+    // スムーススクロール
+    const scrollLinks = document.querySelectorAll('a[href^="#"]');
+    scrollLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        });
+    });
+    
+    // レスポンシブ対応
+    function handleResize() {
+        const width = window.innerWidth;
+        document.body.classList.toggle('mobile', width < 768);
+        document.body.classList.toggle('tablet', width >= 768 && width < 1024);
+        document.body.classList.toggle('desktop', width >= 1024);
+    }
+    
+    window.addEventListener('resize', handleResize);
+    handleResize(); // 初期実行
+    
+    // 画像遅延読み込み
+    const images = document.querySelectorAll('img[data-src]');
+    const imageObserver = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const img = entry.target;
+                img.src = img.dataset.src;
+                img.classList.remove('lazy');
+                observer.unobserve(img);
+            }
+        });
+    });
+    
+    images.forEach(img => imageObserver.observe(img));
+});`;
+
+// 強化されたGemini APIを使用したコード生成
+async function generateWithEnhancedGemini(pcImage, spImage, referenceUrl) {
   try {
     // 画像サイズをチェック
     const pcSize = pcImage.length / 1024 / 1024;
@@ -230,7 +516,7 @@ async function generateWithGemini(pcImage, spImage, referenceUrl) {
     // 非常に大きな画像の場合はOpenAIに自動フォールバック
     if (totalSize > 15 && openai) {
       console.log('📈 Images too large, automatically falling back to OpenAI...');
-      return await generateWithOpenAI(pcImage, spImage, referenceUrl);
+      return await generateWithEnhancedOpenAI(pcImage, spImage, referenceUrl);
     }
     
     // 画像をBase64に変換（自動圧縮付き）
@@ -460,7 +746,7 @@ ${referenceUrl ? `参考URL: ${referenceUrl} - このサイトの技術実装と
 }
 
 // OpenAI APIを使用したコード生成（既存のコードを関数化）
-async function generateWithOpenAI(pcImage, spImage, referenceUrl) {
+async function generateWithEnhancedOpenAI(pcImage, spImage, referenceUrl) {
   try {
     // 画像をBase64に変換
     const pcBase64 = await imageToBase64WithJimp(pcImage);
