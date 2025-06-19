@@ -248,12 +248,40 @@ async function generateWithGemini(pcImage, spImage, referenceUrl) {
       spSample: spImageData.substring(0, 50)
     });
     
-    // 🚨 THINKHARD極限プロンプト: SEO最高基準 + ファイル分離対応
+    // 🚨 THINKHARD極限プロンプト: SEO最高基準 + ファイル分離対応 + 業種精密認識
     const prompt = `あなたは世界最高レベルのUI/UXデザイナー兼フロントエンドエンジニアです。
 
-**🎯 最重要ミッション**: プロダクション品質のSEO完全対応 + ファイル分離構造での100%忠実再現
+**🎯 最重要ミッション**: プロダクション品質のSEO完全対応 + ファイル分離構造での100%忠実再現 + 正確な業種認識
 
 提供された2つの画像（PC版とスマートフォン版）を詳細に分析し、**商用サービス級のプロダクション品質**でHTML/CSS/JavaScriptコードを生成してください。
+
+## 🏢 業種・サイトタイプの正確な識別（最優先）:
+
+### 1. **テキスト内容の精密な読み取り**
+画像内のすべてのテキストを精密に読み取り、特に以下に注目：
+- 会社名・サービス名・事業内容
+- キャッチコピー・説明文
+- メニュー項目・サービス一覧
+- 連絡先情報・営業内容
+
+### 2. **業種特有のキーワード検出**
+以下の業種キーワードを正確に識別：
+- **葬儀関連**: 葬儀、葬祭、告別式、お葬式、家族葬、霊園、法要、お悔やみ、仏事、香典、通夜、焼香、供養、墓地、葬儀場
+- **不動産関連**: 物件、賃貸、売買、マンション、アパート、住宅、不動産、仲介、管理、間取り、家賃、敷金、礼金、査定
+- **医療関連**: 診療、医院、クリニック、病院、治療、診察、医師、看護、薬、健康、予約、診療時間、外来
+- **飲食関連**: レストラン、カフェ、メニュー、料理、ランチ、ディナー、予約、営業時間、テイクアウト
+- **その他**: 画像内のテキストから正確に業種を判定
+
+### 3. **視覚要素からの業種確認**
+- 使用されている画像・写真の内容
+- アイコン・イラストのモチーフ
+- 配色・デザインの業種特性
+- ロゴマークのデザイン
+
+### 4. **誤認識の防止**
+- テキスト内容を最優先で業種判定
+- 視覚的類似性だけで判断しない
+- 業種が不明確な場合は、画像内のテキストをそのまま使用
 
 ## 🚨 CRITICAL要件（MUST）:
 
@@ -338,10 +366,12 @@ ${referenceUrl ? `参考URL: ${referenceUrl} - このサイトの技術実装と
         }
       },
       `📱 PC版デザイン分析要求:
+- **業種識別を最優先**: まず画像内のテキストから正確な業種を判定してください
 - 画像内のすべてのテキストを読み取り、完全に同じ文言で再現してください
+- 特に会社名、サービス名、事業内容のテキストは一字一句正確に
 - すべての色を正確に抽出し、16進数カラーコードで再現してください  
 - レイアウトの寸法、間隔、位置を正確に測定してください
-- 画像要素がある場合は内容を説明し、適切な代替画像URLを提供してください`,
+- 画像要素がある場合は内容を説明し、業種に適した代替画像URLを提供してください`,
       {
         inlineData: {
           mimeType: "image/jpeg",
@@ -349,11 +379,16 @@ ${referenceUrl ? `参考URL: ${referenceUrl} - このサイトの技術実装と
         }
       },
       `📱 スマートフォン版デザイン分析要求:
+- PC版で判定した業種を確認し、一貫性を保つ
 - PC版と同様に、すべての要素を完全に忠実に再現してください
 - レスポンシブ変化点での表示の違いを正確に把握してください
 - 画像とテキストの配置変更を正確に反映してください
 
-🎯 最終要求: 提供された2つの画像を100%忠実に再現するHTML/CSS/JSコードを生成してください。オリジナリティではなく、完全な模倣が求められています。`
+🎯 最終要求: 
+1. **業種を正確に特定**してから、その業種に適したコンテンツを生成
+2. 画像内のテキストは**一字一句変更せず**に使用
+3. 提供された2つの画像を100%忠実に再現するHTML/CSS/JSコードを生成
+4. 誤った業種のコンテンツ（例：葬儀社なのに不動産）は絶対に避ける`
     ]);
     
     const response = await result.response;
@@ -443,6 +478,25 @@ async function generateWithOpenAI(pcImage, spImage, referenceUrl) {
 
 提供された画像デザインを「ピクセル単位で正確に」分析し、視覚的に完全に一致するHTML/CSSコードを生成してください。
 
+## 🏢 業種・サイトタイプの正確な識別（最優先）:
+
+### 1. **テキスト内容の精密な読み取り**
+画像内のすべてのテキストを精密に読み取り、特に以下に注目：
+- 会社名・サービス名・事業内容
+- キャッチコピー・説明文
+- メニュー項目・サービス一覧
+
+### 2. **業種特有のキーワード検出**
+- **葬儀関連**: 葬儀、葬祭、告別式、お葬式、家族葬、霊園、法要、お悔やみ、仏事、通夜、焼香、供養、葬儀場
+- **不動産関連**: 物件、賃貸、売買、マンション、アパート、住宅、不動産、仲介、管理、間取り、家賃、敷金、礼金
+- **医療関連**: 診療、医院、クリニック、病院、治療、診察、医師、看護、薬、健康、予約、診療時間
+- **その他**: 画像内のテキストから正確に業種を判定
+
+### 3. **誤認識の防止**
+- テキスト内容を最優先で業種判定
+- 画像内のテキストは一字一句変更せずに使用
+- 誤った業種のコンテンツ（例：葬儀社なのに不動産）は絶対に避ける
+
 ## 🔍 画像分析の重要なポイント：
 1. **レイアウト構造**: ヘッダー、ナビ、メインコンテンツ、サイドバー、フッターの配置
 2. **色彩情報**: 背景色、テキスト色、ボタン色、境界線色を正確に抽出
@@ -481,12 +535,14 @@ async function generateWithOpenAI(pcImage, spImage, referenceUrl) {
               text: `🖥️ **PCデザイン分析開始**
 
 以下のPCデザイン画像を詳細に分析してください：
+- **最重要**: 画像内のテキストから業種を正確に特定
 - レイアウト構造（グリッド、フレックス配置）
 - カラーパレット（背景、テキスト、アクセント色）
 - コンポーネント（ボタン、カード、ナビゲーション）
 - タイポグラフィ（見出し、本文、サイズ階層）
 - 余白・間隔（マージン、パディング）
-- 視覚的装飾（影、境界線、角丸など）`
+- 視覚的装飾（影、境界線、角丸など）
+- **重要**: 画像内の全テキストを一字一句正確に読み取って使用`
             },
             {
               type: "image_url",
@@ -868,13 +924,60 @@ function detectColumns(section) {
   return Math.min(significantChanges + 1, 4); // 最大4カラム
 }
 
+// 業種設定を取得
+function getIndustryConfig(industryType) {
+  const configs = {
+    funeral: {
+      defaultTitle: '葬儀・葬祭サービス',
+      defaultDescription: '心を込めた葬儀・葬祭サービスをご提供いたします',
+      keywords: '葬儀,葬祭,告別式,家族葬,法要,お悔やみ,通夜,葬儀場',
+      placeholderImages: {
+        hero: 'https://images.unsplash.com/photo-1547012314-59f7f36dcde8?w=1200&h=600&fit=crop',
+        service: 'https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=400&h=300&fit=crop'
+      }
+    },
+    realestate: {
+      defaultTitle: '不動産・物件情報',
+      defaultDescription: '理想の住まいを見つけるお手伝いをいたします',
+      keywords: '不動産,物件,賃貸,売買,マンション,アパート,住宅,仲介',
+      placeholderImages: {
+        hero: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1200&h=600&fit=crop',
+        property: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=400&h=300&fit=crop'
+      }
+    },
+    medical: {
+      defaultTitle: '医療・クリニック',
+      defaultDescription: '地域の皆様の健康を守る医療サービス',
+      keywords: '診療,医院,クリニック,病院,治療,診察,医師,健康',
+      placeholderImages: {
+        hero: 'https://images.unsplash.com/photo-1631217868264-e5b90bb7e133?w=1200&h=600&fit=crop',
+        facility: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=400&h=300&fit=crop'
+      }
+    },
+    default: {
+      defaultTitle: 'ウェブサイト',
+      defaultDescription: 'プロフェッショナルなウェブサイト',
+      keywords: '',
+      placeholderImages: {
+        hero: 'https://images.unsplash.com/photo-1499951360447-b19be8fe80f5?w=1200&h=600&fit=crop',
+        content: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=300&fit=crop'
+      }
+    }
+  };
+  
+  return configs[industryType] || configs.default;
+}
 
-// ピクセルパーフェクトなコード生成
-function generatePixelPerfectCode(pcAnalysis, spAnalysis, referenceData) {
+
+// ピクセルパーフェクトなコード生成（業種認識強化版）
+function generatePixelPerfectCode(pcAnalysis, spAnalysis, referenceData, industryType = null) {
   const { dominantColors, layout } = pcAnalysis;
   const backgroundColor = dominantColors.isDark ? '#0a0a0a' : '#ffffff';
   const textColor = dominantColors.isDark ? '#ffffff' : '#1a1a1a';
   const primaryColor = dominantColors.primary;
+  
+  // 業種に基づいたコンテンツ調整
+  const industryConfig = getIndustryConfig(industryType);
   
   // レイアウトに基づいたHTML構造
   const html = `<!DOCTYPE html>
@@ -882,20 +985,21 @@ function generatePixelPerfectCode(pcAnalysis, spAnalysis, referenceData) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${referenceData?.title || 'Pixel Perfect Design'}</title>
-    <meta name="description" content="${referenceData?.description || 'アップロードされた画像に基づいて生成されたWebサイト'}">
+    <title>${referenceData?.title || industryConfig.defaultTitle || 'Pixel Perfect Design'}</title>
+    <meta name="description" content="${referenceData?.description || industryConfig.defaultDescription || 'アップロードされた画像に基づいて生成されたWebサイト'}">
+    <meta name="keywords" content="${industryConfig.keywords || ''}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    ${layout.hasHeader ? generateHeader(primaryColor, textColor) : ''}
+    ${layout.hasHeader ? generateHeader(primaryColor, textColor, industryConfig) : ''}
     
     <main class="main-content">
-        ${generateMainContent(layout, pcAnalysis, textColor)}
+        ${generateMainContent(layout, pcAnalysis, textColor, industryConfig)}
     </main>
     
-    ${layout.hasFooter ? generateFooter(primaryColor, textColor) : ''}
+    ${layout.hasFooter ? generateFooter(primaryColor, textColor, industryConfig) : ''}
     
     <script src="script.js"></script>
 </body>
@@ -909,7 +1013,7 @@ function generatePixelPerfectCode(pcAnalysis, spAnalysis, referenceData) {
 }
 
 // ヘッダー生成
-function generateHeader(bgColor, textColor) {
+function generateHeader(bgColor, textColor, industryConfig = {}) {
   return `
     <header class="site-header">
         <div class="header-container">
@@ -934,7 +1038,7 @@ function generateHeader(bgColor, textColor) {
 }
 
 // メインコンテンツ生成
-function generateMainContent(layout, analysis, textColor) {
+function generateMainContent(layout, analysis, textColor, industryConfig = {}) {
   if (layout.columnCount === 1) {
     return generateSingleColumnContent();
   } else if (layout.isSidebar) {
