@@ -533,6 +533,9 @@ async function analyzeImageUltraDetailed(imageBuffer) {
     const width = image.bitmap.width;
     const height = image.bitmap.height;
   
+    return {
+      width,
+      height,
       // 簡略化されたレスポンス
       dominantColors: ['#ffffff', '#000000'],
       layout: {
