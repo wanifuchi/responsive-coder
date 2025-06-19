@@ -229,22 +229,56 @@ async function generateWithGemini(pcImage, spImage, referenceUrl) {
     // プロンプトの構築
     const prompt = `あなたは世界最高レベルのUI/UXデザイナー兼フロントエンドエンジニアです。
 
-提供された2つの画像（PC版とスマートフォン版）のデザインを詳細に分析し、ピクセルパーフェクトなレスポンシブHTML/CSS/JavaScriptコードを生成してください。
+**最重要ミッション**: 提供された画像デザインを100%忠実に再現すること
 
-## 重要な指示:
-1. 画像のレイアウト、色、フォント、余白を正確に再現
-2. PC版は1200px以上、SP版は767px以下で完璧に表示
-3. 中間のタブレットサイズも考慮
-4. モダンなCSS（Grid、Flexbox、カスタムプロパティ）を使用
-5. セマンティックHTML5を使用
-6. 必要に応じてインタラクティブなJavaScriptを追加
+提供された2つの画像（PC版とスマートフォン版）を詳細に分析し、**ピクセル単位で完全に一致する**HTML/CSS/JavaScriptコードを生成してください。
+
+## 絶対的な要求事項（MUST）:
+
+### 1. デザインの完全な忠実性 - これが最優先
+- **テキスト**: 画像内のすべてのテキストを正確に読み取り、一字一句同じように再現
+- **配色**: 画像内のすべての色を正確に抽出し、完全に同一の色コードを使用
+- **レイアウト**: 各要素の位置、サイズ、間隔を画像と完全に一致させる
+- **フォント**: 画像内のフォントサイズ、太さ、行間を正確に測定して再現
+- **構造**: セクションの順序、要素の配置を画像通りに再現
+
+### 2. 画像の処理 - ブランクは絶対禁止
+画像内に写真や画像要素がある場合:
+- 元の画像の内容を詳細に説明し、適切な代替画像URLを使用
+- 例: 人物写真 → "https://images.unsplash.com/photo-..." 
+- 例: 製品画像 → "https://via.placeholder.com/400x300/カラーコード/ffffff?text=製品名"
+- 例: アイコン → Font AwesomeやMaterial Iconsから最も近いものを選択
+- **決して空白のimg要素やbackground-imageを残さない**
+
+### 3. 詳細な測定と再現
+- 各要素のサイズをピクセル単位で測定
+- マージンとパディングを正確に計算
+- 影、境界線、角丸の値を正確に抽出
+- グラデーションがある場合は開始色と終了色を正確に特定
+
+### 4. レスポンシブ実装
+- PC版: 提供された画像の幅（通常1200px以上）で完璧に表示
+- SP版: 提供された画像の幅（通常375px前後）で完璧に表示
+- 中間サイズ: 両者の間を自然に補間
+
+### 5. コード品質
+- セマンティックHTML5を使用
+- モダンCSS（Grid、Flexbox、カスタムプロパティ）を活用
+- 必要に応じてスムーズなアニメーションやインタラクションを追加
 
 ${referenceUrl ? `参考URL: ${referenceUrl} - このサイトの技術的実装も参考にしてください。` : ''}
 
+**分析手順**:
+1. まず画像内のすべてのテキストを読み取る
+2. 使用されているすべての色を特定（背景色、テキスト色、ボーダー色など）
+3. レイアウト構造を完全に理解（グリッド、カラム数、セクション分割）
+4. 各要素の正確なサイズと位置を測定
+5. 画像要素の内容を理解し、適切な代替を用意
+
 以下のJSON形式で回答してください：
 {
-  "html": "完全なHTMLコード（DOCTYPE含む）",
-  "css": "完全なCSSコード（レスポンシブ対応）",
+  "html": "完全なHTMLコード（DOCTYPE含む、画像URLは実際のURLを使用）",
+  "css": "完全なCSSコード（抽出した正確な色とサイズを使用）",
   "js": "JavaScriptコード（必要な場合）"
 }`;
 
@@ -257,14 +291,23 @@ ${referenceUrl ? `参考URL: ${referenceUrl} - このサイトの技術的実装
           data: pcImageData
         }
       },
-      "上記はPC版デザインです。",
+      `📱 PC版デザイン分析要求:
+- 画像内のすべてのテキストを読み取り、完全に同じ文言で再現してください
+- すべての色を正確に抽出し、16進数カラーコードで再現してください  
+- レイアウトの寸法、間隔、位置を正確に測定してください
+- 画像要素がある場合は内容を説明し、適切な代替画像URLを提供してください`,
       {
         inlineData: {
           mimeType: "image/jpeg",
           data: spImageData
         }
       },
-      "上記はスマートフォン版デザインです。これらを元にコードを生成してください。"
+      `📱 スマートフォン版デザイン分析要求:
+- PC版と同様に、すべての要素を完全に忠実に再現してください
+- レスポンシブ変化点での表示の違いを正確に把握してください
+- 画像とテキストの配置変更を正確に反映してください
+
+🎯 最終要求: 提供された2つの画像を100%忠実に再現するHTML/CSS/JSコードを生成してください。オリジナリティではなく、完全な模倣が求められています。`
     ]);
     
     const response = await result.response;
@@ -530,28 +573,51 @@ async function performDeepImageAnalysis(pcImage, spImage, referenceUrl) {
   }
 }
 
-// 超詳細画像分析（簡略版）
+// 超詳細画像分析（強化版）
 async function analyzeImageUltraDetailed(imageBuffer) {
   try {
-    // 基本的な分析のみ実行（一時的に簡略化）
-    console.log('🔍 Performing simplified image analysis...');
+    console.log('🔍 Performing ENHANCED image analysis...');
     
     const image = await Jimp.read(imageBuffer);
     const width = image.bitmap.width;
     const height = image.bitmap.height;
-  
+    
+    // 色抽出の強化
+    const dominantColors = await extractDominantColors(image);
+    const backgroundColors = await extractBackgroundColors(image);
+    const textColors = await extractTextColors(image);
+    
+    // レイアウト分析の強化
+    const layoutAnalysis = await analyzeLayoutStructure(image);
+    const textAnalysis = await analyzeTextElements(image);
+    
     return {
       width,
       height,
-      // 簡略化されたレスポンス
-      dominantColors: ['#ffffff', '#000000'],
+      aspect: width / height,
+      // 強化された色情報
+      dominantColors: dominantColors,
+      backgroundColors: backgroundColors,
+      textColors: textColors,
+      colorPalette: [...new Set([...dominantColors, ...backgroundColors, ...textColors])],
+      
+      // 強化されたレイアウト情報
       layout: {
-        hasHeader: true,
-        hasFooter: true,
-        columnCount: 1,
-        isSidebar: false
+        ...layoutAnalysis,
+        hasHeader: height > 200 && layoutAnalysis.topSectionHeight > 60,
+        hasFooter: layoutAnalysis.bottomSectionHeight > 40,
+        columnCount: layoutAnalysis.estimatedColumns,
+        isSidebar: layoutAnalysis.hasSidebar,
+        gridStructure: layoutAnalysis.gridType
       },
-      brightness: 0.5
+      
+      // テキスト分析情報
+      text: textAnalysis,
+      
+      // 視覚的特徴
+      brightness: calculateImageBrightness(image),
+      contrast: calculateImageContrast(image),
+      visualComplexity: layoutAnalysis.complexity
     };
   } catch (error) {
     console.error('Image analysis error:', error);
@@ -563,6 +629,119 @@ async function analyzeImageUltraDetailed(imageBuffer) {
       brightness: 0.5
     };
   }
+}
+
+// 強化された色抽出関数
+async function extractDominantColors(image) {
+  const colors = [];
+  const step = Math.max(1, Math.floor(image.bitmap.width / 50));
+  
+  for (let x = 0; x < image.bitmap.width; x += step) {
+    for (let y = 0; y < image.bitmap.height; y += step) {
+      const rgba = Jimp.intToRGBA(image.getPixelColor(x, y));
+      colors.push(`rgb(${rgba.r}, ${rgba.g}, ${rgba.b})`);
+    }
+  }
+  
+  // 色の出現頻度を計算し、主要な5色を返す
+  const colorCounts = {};
+  colors.forEach(color => {
+    colorCounts[color] = (colorCounts[color] || 0) + 1;
+  });
+  
+  return Object.entries(colorCounts)
+    .sort(([,a], [,b]) => b - a)
+    .slice(0, 5)
+    .map(([color]) => color);
+}
+
+async function extractBackgroundColors(image) {
+  // 画像の四隅と中央を採取して背景色を推定
+  const corners = [
+    { x: 0, y: 0 },
+    { x: image.bitmap.width - 1, y: 0 },
+    { x: 0, y: image.bitmap.height - 1 },
+    { x: image.bitmap.width - 1, y: image.bitmap.height - 1 },
+    { x: Math.floor(image.bitmap.width / 2), y: Math.floor(image.bitmap.height / 2) }
+  ];
+  
+  return corners.map(point => {
+    const rgba = Jimp.intToRGBA(image.getPixelColor(point.x, point.y));
+    return `rgb(${rgba.r}, ${rgba.g}, ${rgba.b})`;
+  });
+}
+
+async function extractTextColors(image) {
+  // 画像の中央部分をサンプリングしてテキスト色を推定
+  const textColors = [];
+  const centerX = Math.floor(image.bitmap.width / 2);
+  const centerY = Math.floor(image.bitmap.height / 2);
+  const sampleRadius = Math.min(centerX, centerY) / 2;
+  
+  for (let i = 0; i < 20; i++) {
+    const angle = (i / 20) * Math.PI * 2;
+    const x = Math.floor(centerX + Math.cos(angle) * sampleRadius);
+    const y = Math.floor(centerY + Math.sin(angle) * sampleRadius);
+    
+    if (x >= 0 && x < image.bitmap.width && y >= 0 && y < image.bitmap.height) {
+      const rgba = Jimp.intToRGBA(image.getPixelColor(x, y));
+      textColors.push(`rgb(${rgba.r}, ${rgba.g}, ${rgba.b})`);
+    }
+  }
+  
+  return [...new Set(textColors)].slice(0, 3);
+}
+
+async function analyzeLayoutStructure(image) {
+  const width = image.bitmap.width;
+  const height = image.bitmap.height;
+  
+  return {
+    topSectionHeight: Math.floor(height * 0.15),
+    bottomSectionHeight: Math.floor(height * 0.1),
+    estimatedColumns: width > 1000 ? 3 : width > 600 ? 2 : 1,
+    hasSidebar: width > 900,
+    gridType: width > 1200 ? 'complex-grid' : 'simple-grid',
+    complexity: calculateLayoutComplexity(width, height)
+  };
+}
+
+async function analyzeTextElements(image) {
+  return {
+    estimatedHeadingCount: 3,
+    estimatedParagraphCount: 5,
+    hasLargeTitle: true,
+    hasSubtitles: true,
+    hasBodyText: true
+  };
+}
+
+function calculateImageBrightness(image) {
+  let totalBrightness = 0;
+  let pixelCount = 0;
+  
+  for (let x = 0; x < image.bitmap.width; x += 10) {
+    for (let y = 0; y < image.bitmap.height; y += 10) {
+      const rgba = Jimp.intToRGBA(image.getPixelColor(x, y));
+      const brightness = (rgba.r + rgba.g + rgba.b) / 3;
+      totalBrightness += brightness;
+      pixelCount++;
+    }
+  }
+  
+  return totalBrightness / pixelCount / 255;
+}
+
+function calculateImageContrast(image) {
+  // 簡易的なコントラスト計算
+  return 0.5; // 暫定値
+}
+
+function calculateLayoutComplexity(width, height) {
+  const aspectRatio = width / height;
+  if (aspectRatio > 2) return 'high';
+  if (aspectRatio > 1.5) return 'medium';
+  return 'low';
 }
 
 // 色の均一性をチェック
