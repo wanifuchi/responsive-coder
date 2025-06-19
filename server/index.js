@@ -154,13 +154,21 @@ async function generateCodeFromDesigns(pcImage, spImage, referenceUrl = null) {
     // Gemini APIを優先的に使用
     if (geminiModel) {
       console.log('🌟 Using Gemini Pro Vision for image analysis...');
-      return await generateWithGemini(pcImage, spImage, referenceUrl);
+      const rawResult = await generateWithGemini(pcImage, spImage, referenceUrl);
+      // 生成されたコードをサニタイズ
+      const sanitizedResult = sanitizeGeneratedCode(rawResult);
+      console.log('🧹 Code sanitization completed');
+      return sanitizedResult;
     }
     
     // OpenAI APIをフォールバックとして使用
     if (openai) {
       console.log('🔄 Falling back to OpenAI GPT-4o...');
-      return await generateWithOpenAI(pcImage, spImage, referenceUrl);
+      const rawResult = await generateWithOpenAI(pcImage, spImage, referenceUrl);
+      // 生成されたコードをサニタイズ
+      const sanitizedResult = sanitizeGeneratedCode(rawResult);
+      console.log('🧹 Code sanitization completed');
+      return sanitizedResult;
     }
     
     // どちらのAPIも利用できない場合
@@ -250,11 +258,20 @@ async function generateWithGemini(pcImage, spImage, referenceUrl) {
 - 例: アイコン → Font AwesomeやMaterial Iconsから最も近いものを選択
 - **決して空白のimg要素やbackground-imageを残さない**
 
-### 2.5. 色コードの適切な処理 - DNS解決エラーの防止
-- **色コードは必ず#記号付きで記述**: 例 color: #ffffff;
-- **URLとして解釈される記述を避ける**: url(#ffffff) などは使用禁止
-- **href属性に色コードを使用しない**: href="#ffffff" は禁止
+### 2.5. 色コードの適切な処理 - DNS解決エラーの防止（重要）
+**絶対に守ること:**
+- **色コードは必ず#記号付きで記述**: color: #ffffff; background: #333333;
+- **URLとして解釈される記述を避ける**: url(#ffffff) は絶対禁止
+- **href属性に色コードを使用しない**: href="#ffffff" は絶対禁止
+- **class/id名に色コードを使用しない**: class="333333" は禁止
 - **JavaScriptでの色コード処理**: 必ず文字列として扱う "#ffffff"
+- **data属性に色コードを使用しない**: data-color="ffffff" は禁止
+- **CSSセレクタに色コードを使用しない**: .ffffff {} は禁止
+
+**正しい例:**
+- CSS: color: #ffffff; background-color: #333333;
+- JS: const color = "#ffffff"; element.style.color = "#333333";
+- HTML: style="color: #ffffff; background: #333333;"
 
 ### 3. 詳細な測定と再現
 - 各要素のサイズをピクセル単位で測定
@@ -332,13 +349,10 @@ ${referenceUrl ? `参考URL: ${referenceUrl} - このサイトの技術的実装
       throw new Error('Invalid response format from Gemini');
     }
     
-    // 生成されたコードをサニタイズ
-    const sanitizedResult = sanitizeGeneratedCode(parsedResult);
-    
     return {
-      html: sanitizedResult.html,
-      css: sanitizedResult.css,
-      js: sanitizedResult.js || ''
+      html: parsedResult.html,
+      css: parsedResult.css,
+      js: parsedResult.js || ''
     };
     
   } catch (error) {
@@ -1477,9 +1491,31 @@ app.post("/api/iterate", upload.single("targetImage"), async (req, res) => {
   } catch (error) {
     console.error("Iteration error:", error);
     console.error("Error stack:", error.stack);
-    res.status(500).json({ 
-      error: "イテレーション処理に失敗しました",
-      details: error.message
+    console.error("Error details:", {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    
+    // エラーの種類に応じた対応
+    let errorMessage = "イテレーション処理に失敗しました";
+    let statusCode = 500;
+    
+    if (error.message.includes("unrecognised content")) {
+      errorMessage = "画像データの処理中にエラーが発生しました";
+      console.log("Stream processing error detected, likely image data corruption");
+    } else if (error.message.includes("timeout")) {
+      errorMessage = "処理がタイムアウトしました";
+      statusCode = 408;
+    } else if (error.message.includes("ENOTFOUND")) {
+      errorMessage = "ネットワーク接続エラーが発生しました";
+      statusCode = 503;
+    }
+    
+    res.status(statusCode).json({ 
+      error: errorMessage,
+      details: error.message,
+      type: error.name || "UnknownError"
     });
   }
 });
@@ -1499,29 +1535,70 @@ function sanitizeGeneratedCode(codeObject) {
 }
 
 function sanitizeHTML(html) {
-  // 不正なhref属性を修正
-  let sanitized = html.replace(/href\s*=\s*["']#[0-9a-fA-F]{6}["']/g, 'href="#"');
+  let sanitized = html;
   
-  // 色コードが直接URLとして使用されている場合を修正
+  // 1. 不正なhref属性を修正（色コード）
+  sanitized = sanitized.replace(/href\s*=\s*["']#?[0-9a-fA-F]{6}["']/g, 'href="#"');
+  sanitized = sanitized.replace(/href\s*=\s*["'][0-9a-fA-F]{6}["']/g, 'href="#"');
+  
+  // 2. 色コードが直接URL/src属性として使用されている場合を修正
+  sanitized = sanitized.replace(/src\s*=\s*["'][#]?[0-9a-fA-F]{6}["']/g, 'src="https://via.placeholder.com/300x200/cccccc/ffffff?text=Image"');
   sanitized = sanitized.replace(/src\s*=\s*["'][0-9a-fA-F]{6}["']/g, 'src="https://via.placeholder.com/300x200/cccccc/ffffff?text=Image"');
   
-  // 空白のimg要素を修正
+  // 3. 空白または不正なimg要素を修正
   sanitized = sanitized.replace(/<img[^>]*src\s*=\s*["']["'][^>]*>/g, '<img src="https://via.placeholder.com/300x200/cccccc/ffffff?text=Image" alt="Generated Image">');
+  sanitized = sanitized.replace(/<img[^>]*src\s*=\s*["'][^"']*["'][^>]*alt\s*=\s*["']["'][^>]*>/g, '<img src="https://via.placeholder.com/300x200/cccccc/ffffff?text=Image" alt="Generated Image">');
+  
+  // 4. 色コードがclass名やid名として使用されている場合を修正
+  sanitized = sanitized.replace(/class\s*=\s*["'][0-9a-fA-F]{6}["']/g, 'class="generated-element"');
+  sanitized = sanitized.replace(/id\s*=\s*["'][0-9a-fA-F]{6}["']/g, 'id="generated-element"');
+  
+  // 5. data属性に色コードが入っている場合を修正
+  sanitized = sanitized.replace(/data-[^=]*\s*=\s*["'][#]?[0-9a-fA-F]{6}["']/g, 'data-color="#cccccc"');
+  
+  // 6. style属性内の色コード修正
+  sanitized = sanitized.replace(/style\s*=\s*["'][^"']*color\s*:\s*([0-9a-fA-F]{6})[^"']*["']/g, (match, colorCode) => {
+    return match.replace(colorCode, '#' + colorCode);
+  });
   
   return sanitized;
 }
 
 function sanitizeCSS(css) {
-  // 不正なurl()記述を修正
-  let sanitized = css.replace(/url\s*\(\s*#[0-9a-fA-F]{6}\s*\)/g, 'none');
+  let sanitized = css;
   
-  // 色コードの前に#がない場合を修正
-  sanitized = sanitized.replace(/color\s*:\s*([0-9a-fA-F]{6})\s*;/g, 'color: #$1;');
-  sanitized = sanitized.replace(/background\s*:\s*([0-9a-fA-F]{6})\s*;/g, 'background: #$1;');
-  sanitized = sanitized.replace(/background-color\s*:\s*([0-9a-fA-F]{6})\s*;/g, 'background-color: #$1;');
+  // 1. 不正なurl()記述を修正
+  sanitized = sanitized.replace(/url\s*\(\s*[#]?[0-9a-fA-F]{6}\s*\)/g, 'none');
+  sanitized = sanitized.replace(/url\s*\(\s*["'][#]?[0-9a-fA-F]{6}["']\s*\)/g, 'none');
   
-  // 無効なCSS値を修正
-  sanitized = sanitized.replace(/:\s*[0-9a-fA-F]{6}\s*(?!;)/g, ': #$&;'.replace(':', ''));
+  // 2. 色プロパティの#記号補完
+  sanitized = sanitized.replace(/color\s*:\s*([0-9a-fA-F]{6})([;\s}])/g, 'color: #$1$2');
+  sanitized = sanitized.replace(/background\s*:\s*([0-9a-fA-F]{6})([;\s}])/g, 'background: #$1$2');
+  sanitized = sanitized.replace(/background-color\s*:\s*([0-9a-fA-F]{6})([;\s}])/g, 'background-color: #$1$2');
+  sanitized = sanitized.replace(/border-color\s*:\s*([0-9a-fA-F]{6})([;\s}])/g, 'border-color: #$1$2');
+  sanitized = sanitized.replace(/outline-color\s*:\s*([0-9a-fA-F]{6})([;\s}])/g, 'outline-color: #$1$2');
+  
+  // 3. CSS変数内の色コード修正
+  sanitized = sanitized.replace(/--[^:]*:\s*([0-9a-fA-F]{6})([;\s}])/g, (match, colorCode, ending) => {
+    return match.replace(colorCode, '#' + colorCode);
+  });
+  
+  // 4. 色コードがセレクタ名になっている場合を修正
+  sanitized = sanitized.replace(/\.[0-9a-fA-F]{6}\s*\{/g, '.generated-class {');
+  sanitized = sanitized.replace(/#[0-9a-fA-F]{6}\s*\{/g, '#generated-id {');
+  
+  // 5. content プロパティ内の色コード修正
+  sanitized = sanitized.replace(/content\s*:\s*["'][^"']*([0-9a-fA-F]{6})[^"']*["']/g, (match, colorCode) => {
+    return match.replace(colorCode, '#' + colorCode);
+  });
+  
+  // 6. 不正なプロパティ値の修正
+  sanitized = sanitized.replace(/:\s*([0-9a-fA-F]{6})\s*([;}])/g, ': #$1$2');
+  
+  // 7. box-shadow, text-shadow内の色コード修正
+  sanitized = sanitized.replace(/(box-shadow|text-shadow)\s*:\s*([^;]*?)([0-9a-fA-F]{6})([^;]*?)(;|\})/g, (match, prop, before, colorCode, after, ending) => {
+    return `${prop}: ${before}#${colorCode}${after}${ending}`;
+  });
   
   return sanitized;
 }
@@ -1529,11 +1606,36 @@ function sanitizeCSS(css) {
 function sanitizeJS(js) {
   if (!js) return '';
   
-  // 色コードを適切に文字列として処理
-  let sanitized = js.replace(/(['"]\s*)(#?)([0-9a-fA-F]{6})(\s*['"])/g, '"#$3"');
+  let sanitized = js;
   
-  // 不正な色コード参照を修正
-  sanitized = sanitized.replace(/([^"'])#([0-9a-fA-F]{6})([^"'])/g, '$1"#$2"$3');
+  // 1. 文字列内の色コードを適切に処理
+  sanitized = sanitized.replace(/(['"])\s*([0-9a-fA-F]{6})\s*(['"])/g, '$1#$2$3');
+  sanitized = sanitized.replace(/(['"])\s*#?([0-9a-fA-F]{6})\s*(['"])/g, '$1#$2$3');
+  
+  // 2. 変数代入での色コード修正
+  sanitized = sanitized.replace(/=\s*([0-9a-fA-F]{6})([;\s])/g, '= "#$1"$2');
+  sanitized = sanitized.replace(/=\s*["']([0-9a-fA-F]{6})["']([;\s])/g, '= "#$1"$2');
+  
+  // 3. 関数引数での色コード修正
+  sanitized = sanitized.replace(/\(\s*([0-9a-fA-F]{6})\s*\)/g, '("#$1")');
+  sanitized = sanitized.replace(/,\s*([0-9a-fA-F]{6})\s*,/g, ', "#$1",');
+  sanitized = sanitized.replace(/,\s*([0-9a-fA-F]{6})\s*\)/g, ', "#$1")');
+  
+  // 4. オブジェクトプロパティでの色コード修正
+  sanitized = sanitized.replace(/:\s*([0-9a-fA-F]{6})\s*([,}])/g, ': "#$1"$2');
+  
+  // 5. 配列内の色コード修正
+  sanitized = sanitized.replace(/\[\s*([0-9a-fA-F]{6})\s*\]/g, '["#$1"]');
+  sanitized = sanitized.replace(/,\s*([0-9a-fA-F]{6})\s*\]/g, ', "#$1"]');
+  
+  // 6. DOM操作での色コード修正
+  sanitized = sanitized.replace(/(style\s*\.\s*color\s*=\s*)([0-9a-fA-F]{6})/g, '$1"#$2"');
+  sanitized = sanitized.replace(/(backgroundColor\s*=\s*)([0-9a-fA-F]{6})/g, '$1"#$2"');
+  
+  // 7. テンプレートリテラル内の色コード修正
+  sanitized = sanitized.replace(/`([^`]*?)([0-9a-fA-F]{6})([^`]*?)`/g, (match, before, colorCode, after) => {
+    return `\`${before}#${colorCode}${after}\``;
+  });
   
   return sanitized;
 }

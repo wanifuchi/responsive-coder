@@ -7,15 +7,32 @@ import path from 'path';
 
 // HTMLとCSSからスクリーンショットを撮影
 export async function takeScreenshot(html, css, device = 'desktop') {
+  // 入力データの検証
+  if (!html || !css) {
+    console.log('⚠️ Invalid input data, generating fallback screenshot');
+    return await generateFallbackScreenshot(html, css, device);
+  }
+
   // まずPlaywrightを試行
   try {
-    return await takeScreenshotWithPlaywright(html, css, device);
+    console.log('🎭 Attempting Playwright screenshot...');
+    const result = await takeScreenshotWithPlaywright(html, css, device);
+    console.log('✅ Playwright screenshot successful');
+    return result;
   } catch (playwrightError) {
-    console.log('⚠️ Playwright failed, trying Puppeteer...', playwrightError.message);
+    console.log('⚠️ Playwright failed:', playwrightError.message);
+    
+    // Puppeteerにフォールバック
     try {
-      return await takeScreenshotWithPuppeteer(html, css, device);
+      console.log('🎯 Attempting Puppeteer screenshot...');
+      const result = await takeScreenshotWithPuppeteer(html, css, device);
+      console.log('✅ Puppeteer screenshot successful');
+      return result;
     } catch (puppeteerError) {
-      console.log('⚠️ Puppeteer failed, using fallback...', puppeteerError.message);
+      console.log('⚠️ Puppeteer failed:', puppeteerError.message);
+      
+      // 最終フォールバック
+      console.log('🔄 Using fallback screenshot generator...');
       return await generateFallbackScreenshot(html, css, device);
     }
   }
@@ -28,6 +45,7 @@ async function takeScreenshotWithPlaywright(html, css, device = 'desktop') {
   const browser = await chromium.launch({
     executablePath: '/usr/bin/chromium-browser',
     headless: true,
+    timeout: 30000, // 30秒のタイムアウト
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -37,7 +55,9 @@ async function takeScreenshotWithPlaywright(html, css, device = 'desktop') {
       '--disable-gpu',
       '--disable-background-timer-throttling',
       '--disable-backgrounding-occluded-windows',
-      '--disable-renderer-backgrounding'
+      '--disable-renderer-backgrounding',
+      '--disable-features=VizDisplayCompositor',
+      '--disable-ipc-flooding-protection'
     ]
   });
 
@@ -69,13 +89,19 @@ async function takeScreenshotWithPlaywright(html, css, device = 'desktop') {
     `;
 
     await page.setContent(content, {
-      waitUntil: 'networkidle'
+      waitUntil: 'networkidle',
+      timeout: 30000
     });
+
+    // 短い待機を追加してレンダリングを完了
+    await page.waitForTimeout(1000);
 
     // スクリーンショットを撮影
     const screenshot = await page.screenshot({
       fullPage: true,
-      type: 'png'
+      type: 'png',
+      timeout: 30000,
+      animations: 'disabled' // アニメーションを無効化
     });
 
     return screenshot;
