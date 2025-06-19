@@ -22,6 +22,7 @@ import {
   adjustColor
 } from './image-analysis-helpers.js';
 import { PixelPerfectEngine } from './pixel-perfect-engine.js';
+import { generateWithGemini, generateWithOpenAI } from './vision-api-restore.js';
 
 dotenv.config();
 
@@ -421,9 +422,14 @@ document.addEventListener('DOMContentLoaded', function() {
       console.error('❌ PixelPerfectEngine failed:', engineError);
       
       // Vision API フォールバック
-      if (geminiModel || openai) {
-        console.log('🔄 Falling back to Vision API...');
-        return generateEmergencyFallback(referenceUrl);
+      if (geminiModel) {
+        console.log('🔄 Falling back to Gemini Vision API...');
+        return await generateWithGemini(pcImage, spImage, referenceUrl);
+      }
+      
+      if (openai) {
+        console.log('🔄 Falling back to OpenAI Vision API...');
+        return await generateWithOpenAI(pcImage, spImage, referenceUrl);
       }
     }
     
