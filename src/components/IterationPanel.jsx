@@ -65,7 +65,19 @@ function IterationPanel({ html, css, targetImage, onCodeUpdate }) {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Iteration API error:', errorText);
-        throw new Error(`イテレーション処理に失敗しました: ${response.status}`);
+        
+        // 緊急修正: より詳細なエラー情報を解析
+        let detailedError = `イテレーション処理に失敗しました: ${response.status}`;
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData.error && errorData.details) {
+            detailedError = `${errorData.error}: ${errorData.details}`;
+          }
+        } catch (parseError) {
+          // JSONパースに失敗した場合はそのまま
+        }
+        
+        throw new Error(detailedError);
       }
 
       const result = await response.json();

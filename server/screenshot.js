@@ -5,31 +5,72 @@ import pixelmatch from 'pixelmatch';
 import fs from 'fs/promises';
 import path from 'path';
 
+// スクリーンショット用HTMLサニタイズ関数
+function sanitizeHtmlForScreenshot(html) {
+  let sanitized = html;
+  
+  // 色コードがURLとして解釈されることを防ぐ
+  sanitized = sanitized.replace(/href\s*=\s*["']([0-9a-fA-F]{6})["']/g, 'href="#"');
+  sanitized = sanitized.replace(/src\s*=\s*["']([0-9a-fA-F]{6})["']/g, 'src="https://via.placeholder.com/300x200/cccccc/ffffff?text=Image"');
+  sanitized = sanitized.replace(/class\s*=\s*["']([0-9a-fA-F]{6})["']/g, 'class="generated-element"');
+  sanitized = sanitized.replace(/id\s*=\s*["']([0-9a-fA-F]{6})["']/g, 'id="generated-element"');
+  
+  return sanitized;
+}
+
+// スクリーンショット用CSSサニタイズ関数
+function sanitizeCssForScreenshot(css) {
+  let sanitized = css;
+  
+  // 色コードがURLとして解釈されることを防ぐ
+  sanitized = sanitized.replace(/url\s*\(\s*([0-9a-fA-F]{6})\s*\)/g, 'none');
+  sanitized = sanitized.replace(/\.([0-9a-fA-F]{6})\s*\{/g, '.generated-class {');
+  sanitized = sanitized.replace(/#([0-9a-fA-F]{6})\s*\{/g, '#generated-id {');
+  
+  // 色コードに#を追加
+  sanitized = sanitized.replace(/color\s*:\s*([0-9a-fA-F]{6})([;\s}])/g, 'color: #$1$2');
+  sanitized = sanitized.replace(/background\s*:\s*([0-9a-fA-F]{6})([;\s}])/g, 'background: #$1$2');
+  sanitized = sanitized.replace(/background-color\s*:\s*([0-9a-fA-F]{6})([;\s}])/g, 'background-color: #$1$2');
+  
+  return sanitized;
+}
+
 // HTMLとCSSからスクリーンショットを撮影
 export async function takeScreenshot(html, css, device = 'desktop') {
-  // 入力データの検証
-  if (!html || !css) {
-    console.log('⚠️ Invalid input data, generating fallback screenshot');
+  // 緊急修正: 入力データの厳格な検証と前処理
+  if (!html || !css || html.trim() === '' || css.trim() === '') {
+    console.log('⚠️ Invalid or empty input data, generating fallback screenshot');
     return await generateFallbackScreenshot(html, css, device);
   }
 
-  // まずPlaywrightを試行
+  // 色コードDNSエラーを防ぐため、HTMLとCSSを事前サニタイズ
+  const sanitizedHtml = sanitizeHtmlForScreenshot(html);
+  const sanitizedCss = sanitizeCssForScreenshot(css);
+  
+  console.log('🧹 Pre-screenshot sanitization:', {
+    originalHtmlLength: html.length,
+    sanitizedHtmlLength: sanitizedHtml.length,
+    originalCssLength: css.length,
+    sanitizedCssLength: sanitizedCss.length
+  });
+
+  // 最初からPuppeteerを使用（Playwrightのストリームエラーを回避）
   try {
-    console.log('🎭 Attempting Playwright screenshot...');
-    const result = await takeScreenshotWithPlaywright(html, css, device);
-    console.log('✅ Playwright screenshot successful');
+    console.log('🎯 Using Puppeteer for reliable screenshot...');
+    const result = await takeScreenshotWithPuppeteer(sanitizedHtml, sanitizedCss, device);
+    console.log('✅ Puppeteer screenshot successful');
     return result;
-  } catch (playwrightError) {
-    console.log('⚠️ Playwright failed:', playwrightError.message);
+  } catch (puppeteerError) {
+    console.log('⚠️ Puppeteer failed, trying Playwright as backup:', puppeteerError.message);
     
-    // Puppeteerにフォールバック
+    // Playwrightをバックアップとして使用
     try {
-      console.log('🎯 Attempting Puppeteer screenshot...');
-      const result = await takeScreenshotWithPuppeteer(html, css, device);
-      console.log('✅ Puppeteer screenshot successful');
+      console.log('🎭 Attempting Playwright as backup...');
+      const result = await takeScreenshotWithPlaywright(sanitizedHtml, sanitizedCss, device);
+      console.log('✅ Playwright screenshot successful');
       return result;
-    } catch (puppeteerError) {
-      console.log('⚠️ Puppeteer failed:', puppeteerError.message);
+    } catch (playwrightError) {
+      console.log('⚠️ Both engines failed, using fallback:', playwrightError.message);
       
       // 最終フォールバック
       console.log('🔄 Using fallback screenshot generator...');

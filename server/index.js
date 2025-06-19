@@ -156,20 +156,16 @@ async function generateCodeFromDesigns(pcImage, spImage, referenceUrl = null) {
       console.log('🌟 Using Gemini Pro Vision for image analysis...');
       const rawResult = await generateWithGemini(pcImage, spImage, referenceUrl);
       
-      // デバッグ: サニタイズを一時的に無効化
-      console.log('🔍 DEBUGGING: Sanitization temporarily disabled');
-      console.log('Raw result preview:', {
-        htmlLength: rawResult.html?.length || 0,
-        cssLength: rawResult.css?.length || 0,
-        htmlPreview: rawResult.html?.substring(0, 200) || 'empty'
+      // 緊急修正: サニタイズを再有効化してDNSエラーを根絶
+      const sanitizedResult = sanitizeGeneratedCode(rawResult);
+      console.log('🧹 EMERGENCY: Code sanitization re-enabled to fix DNS errors');
+      console.log('Sanitization results:', {
+        originalHtmlLength: rawResult.html?.length || 0,
+        sanitizedHtmlLength: sanitizedResult.html?.length || 0,
+        originalCssLength: rawResult.css?.length || 0,
+        sanitizedCssLength: sanitizedResult.css?.length || 0
       });
-      
-      return rawResult; // サニタイズなしで返す
-      
-      // 生成されたコードをサニタイズ
-      // const sanitizedResult = sanitizeGeneratedCode(rawResult);
-      // console.log('🧹 Code sanitization completed');
-      // return sanitizedResult;
+      return sanitizedResult;
     }
     
     // OpenAI APIをフォールバックとして使用
@@ -177,20 +173,16 @@ async function generateCodeFromDesigns(pcImage, spImage, referenceUrl = null) {
       console.log('🔄 Falling back to OpenAI GPT-4o...');
       const rawResult = await generateWithOpenAI(pcImage, spImage, referenceUrl);
       
-      // デバッグ: サニタイズを一時的に無効化
-      console.log('🔍 DEBUGGING: Sanitization temporarily disabled');
-      console.log('Raw result preview:', {
-        htmlLength: rawResult.html?.length || 0,
-        cssLength: rawResult.css?.length || 0,
-        htmlPreview: rawResult.html?.substring(0, 200) || 'empty'
+      // 緊急修正: サニタイズを再有効化してDNSエラーを根絶
+      const sanitizedResult = sanitizeGeneratedCode(rawResult);
+      console.log('🧹 EMERGENCY: Code sanitization re-enabled to fix DNS errors');
+      console.log('Sanitization results:', {
+        originalHtmlLength: rawResult.html?.length || 0,
+        sanitizedHtmlLength: sanitizedResult.html?.length || 0,
+        originalCssLength: rawResult.css?.length || 0,
+        sanitizedCssLength: sanitizedResult.css?.length || 0
       });
-      
-      return rawResult; // サニタイズなしで返す
-      
-      // 生成されたコードをサニタイズ
-      // const sanitizedResult = sanitizeGeneratedCode(rawResult);
-      // console.log('🧹 Code sanitization completed');
-      // return sanitizedResult;
+      return sanitizedResult;
     }
     
     // どちらのAPIも利用できない場合
@@ -1535,20 +1527,39 @@ app.post("/api/iterate", upload.single("targetImage"), async (req, res) => {
     }
 
     console.log("Starting iteration design process...");
-    // イテレーション処理を実行
-    const iterations = await iterateDesign(targetImage, html, css, maxIterations);
+    
+    // 緊急修正: イテレーション前にHTMLとCSSをサニタイズ
+    const sanitizedHtml = sanitizeHTML(html);
+    const sanitizedCss = sanitizeCSS(css);
+    
+    console.log('🧹 Pre-iteration sanitization:', {
+      originalHtmlLength: html.length,
+      sanitizedHtmlLength: sanitizedHtml.length,
+      originalCssLength: css.length,
+      sanitizedCssLength: sanitizedCss.length
+    });
+    
+    // イテレーション処理を実行（サニタイズ済みコードを使用）
+    const iterations = await iterateDesign(targetImage, sanitizedHtml, sanitizedCss, maxIterations);
     console.log(`Iteration completed with ${iterations.length} iterations`);
 
     // 結果を返す（Base64エンコード）
-    const results = iterations.map(iter => ({
-      iteration: iter.iteration,
-      html: iter.html,
-      css: iter.css,
-      screenshot: `data:image/png;base64,${iter.screenshot.toString("base64")}`,
-      diffPercentage: iter.diffPercentage,
-      diffImage: `data:image/png;base64,${iter.diffImage.toString("base64")}`
-    }));
+    const results = iterations.map(iter => {
+      // 各イテレーション結果もサニタイズ
+      const sanitizedIterHtml = sanitizeHTML(iter.html);
+      const sanitizedIterCss = sanitizeCSS(iter.css);
+      
+      return {
+        iteration: iter.iteration,
+        html: sanitizedIterHtml,
+        css: sanitizedIterCss,
+        screenshot: `data:image/png;base64,${iter.screenshot.toString("base64")}`,
+        diffPercentage: iter.diffPercentage,
+        diffImage: `data:image/png;base64,${iter.diffImage.toString("base64")}`
+      };
+    });
 
+    console.log('🧹 Iteration results sanitized');
     res.json({ iterations: results });
   } catch (error) {
     console.error("Iteration error:", error);
