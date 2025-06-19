@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs/promises';
 // 画像処理にJimpを使用（Pure JavaScript）
+import Jimp from 'jimp';
 import { imageToBase64WithJimp } from './image-processor-jimp.js';
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -146,78 +147,6 @@ const upload = multer({
   }
 });
 
-// 古いimageToBase64関数（sharpベース）- 使用停止
-/*
-async function imageToBase64(buffer, maxSizeMB = 3.5) {
-  try {
-    const maxSizeBytes = maxSizeMB * 1024 * 1024;
-    
-    // 元のサイズをチェック
-    const originalSize = buffer.length;
-    console.log(`📷 Original image size: ${(originalSize / 1024 / 1024).toFixed(2)}MB`);
-    
-    let processedBuffer = buffer;
-    
-    // 4MB（実際は3.5MB）を超える場合は圧縮
-    if (originalSize > maxSizeBytes) {
-      if (sharp) {
-        console.log('🔄 Image too large for Gemini API, compressing...');
-      } else {
-        console.log('⚠️ Image too large but Sharp not available, using original image');
-        const base64 = buffer.toString('base64');
-        return base64;
-      }
-      
-      // 品質を調整しながら段階的に圧縮
-      let quality = 90;
-      let compressed;
-      
-      do {
-        compressed = await sharp(buffer)
-          .resize(1920, 1080, { 
-            fit: 'inside', 
-            withoutEnlargement: true 
-          })
-          .jpeg({ 
-            quality: quality,
-            progressive: true
-          })
-          .toBuffer();
-          
-        console.log(`🔄 Compressed with quality ${quality}: ${(compressed.length / 1024 / 1024).toFixed(2)}MB`);
-        quality -= 10;
-      } while (compressed.length > maxSizeBytes && quality > 30);
-      
-      // さらに小さくする必要がある場合はサイズを縮小
-      if (compressed.length > maxSizeBytes) {
-        console.log('🔄 Further resizing required...');
-        compressed = await sharp(buffer)
-          .resize(1280, 720, { 
-            fit: 'inside', 
-            withoutEnlargement: true 
-          })
-          .jpeg({ 
-            quality: 70,
-            progressive: true
-          })
-          .toBuffer();
-      }
-      
-      processedBuffer = compressed;
-      console.log(`✅ Final compressed size: ${(processedBuffer.length / 1024 / 1024).toFixed(2)}MB`);
-    }
-    
-    const base64 = processedBuffer.toString('base64');
-    return `data:image/jpeg;base64,${base64}`;
-    
-  } catch (error) {
-    console.error('Image processing error:', error);
-    // エラーの場合は元の画像をそのまま使用
-    const base64 = buffer.toString('base64');
-    return `data:image/png;base64,${base64}`;
-  }
-}
-*/
 
 // 画像を解析してHTML/CSSを生成
 async function generateCodeFromDesigns(pcImage, spImage, referenceUrl = null) {
@@ -1097,14 +1026,15 @@ async function processUploadedFile(file, targetWidth = 1200) {
       });
     }
 
-    // 画像ファイルの場合はリサイズのみ
-    return await sharp(file.buffer)
-      .resize(targetWidth, null, {
-        withoutEnlargement: true,
-        fit: "inside"
-      })
-      .png()
-      .toBuffer();
+    // 画像ファイルの場合はJimpでリサイズ
+    const image = await Jimp.read(file.buffer);
+    
+    // 必要に応じてリサイズ
+    if (image.bitmap.width > targetWidth) {
+      image.scaleToFit(targetWidth, Jimp.AUTO);
+    }
+    
+    return await image.getBufferAsync(Jimp.MIME_PNG);
   } catch (error) {
     console.error("File processing error:", error);
     throw new Error("ファイル処理中にエラーが発生しました");
