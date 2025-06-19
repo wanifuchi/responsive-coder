@@ -6,7 +6,13 @@ import path from 'path';
 
 // HTMLとCSSからスクリーンショットを撮影
 export async function takeScreenshot(html, css, device = 'desktop') {
+  // Railway環境でのChromiumパスを確認
+  const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser';
+  
+  console.log('🎯 Launching Puppeteer with:', { executablePath, device });
+  
   const browser = await puppeteer.launch({
+    executablePath: executablePath,
     headless: 'new',
     args: [
       '--no-sandbox',

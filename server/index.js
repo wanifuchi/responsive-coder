@@ -1198,7 +1198,12 @@ app.post("/api/screenshot", express.json({ limit: "50mb" }), async (req, res) =>
     });
   } catch (error) {
     console.error("Screenshot error:", error);
-    res.status(500).json({ error: "スクリーンショットの生成に失敗しました" });
+    console.error("Error details:", error.message);
+    console.error("Stack trace:", error.stack);
+    res.status(500).json({ 
+      error: "スクリーンショットの生成に失敗しました",
+      details: error.message
+    });
   }
 });
 
