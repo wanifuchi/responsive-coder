@@ -219,6 +219,13 @@ async function generateWithGemini(pcImage, spImage, referenceUrl) {
     const pcImageData = pcBase64.includes(',') ? pcBase64.split(',')[1] : pcBase64;
     const spImageData = spBase64.includes(',') ? spBase64.split(',')[1] : spBase64;
     
+    console.log('🔍 Image data lengths:', {
+      pcImageData: pcImageData.length,
+      spImageData: spImageData.length,
+      pcSample: pcImageData.substring(0, 50),
+      spSample: spImageData.substring(0, 50)
+    });
+    
     // プロンプトの構築
     const prompt = `あなたは世界最高レベルのUI/UXデザイナー兼フロントエンドエンジニアです。
 
