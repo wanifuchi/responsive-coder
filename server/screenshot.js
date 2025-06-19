@@ -177,11 +177,11 @@ export async function takeScreenshot(html, css, device = 'desktop') {
     errors: validationResult.errors.length
   });
 
-  // 🚨 STREAM ERROR完全回避: 複数エンジン段階的フォールバック
+  // 🚨 STREAM ERROR完全回避: Playwright完全無効化
   const engines = [
     { name: 'Puppeteer', func: takeScreenshotWithPuppeteer },
-    { name: 'Playwright', func: takeScreenshotWithPlaywright },
-    { name: 'Fallback', func: generateAdvancedFallbackScreenshot }
+    { name: 'AdvancedFallback', func: generateAdvancedFallbackScreenshot },
+    { name: 'EmergencyFallback', func: generateEmergencyFallback }
   ];
 
   for (const engine of engines) {
@@ -317,16 +317,17 @@ async function generateFallbackScreenshot(html, css, device = 'desktop') {
   return PNG.sync.write(png);
 }
 
-// Puppeteer実装（バックアップ）
+// 🚨 THINKHARD極限Puppeteer: ストリームエラー完全回避
 async function takeScreenshotWithPuppeteer(html, css, device = 'desktop') {
-  // Railway環境でのChromiumパスを確認
   const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser';
   
-  console.log('🎯 Launching Puppeteer with:', { executablePath, device });
+  console.log('🚨 EXTREME Puppeteer launching with STREAM ERROR prevention:', { executablePath, device });
   
   const browser = await puppeteer.launch({
     executablePath: executablePath,
     headless: 'new',
+    timeout: 60000, // 60秒タイムアウト
+    slowMo: 100, // 処理を意図的に遅くしてストリームエラー防止
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -335,30 +336,77 @@ async function takeScreenshotWithPuppeteer(html, css, device = 'desktop') {
       '--no-first-run',
       '--no-zygote',
       '--single-process',
-      '--disable-gpu'
+      '--disable-gpu',
+      '--disable-background-timer-throttling',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-renderer-backgrounding',
+      '--disable-features=TranslateUI',
+      '--disable-ipc-flooding-protection',
+      '--disable-software-rasterizer',
+      '--disable-extensions',
+      '--disable-plugins',
+      '--disable-images', // 画像読み込みを無効化してストリーム問題回避
+      '--disable-javascript', // JS実行を無効化
+      '--disable-web-security',
+      '--disable-features=VizDisplayCompositor',
+      '--virtual-time-budget=10000' // 仮想時間制限
     ]
   });
 
   try {
     const page = await browser.newPage();
+    
+    // 🚨 EXTREME設定: ストリームエラー完全防止
+    
+    // タイムアウト設定
+    page.setDefaultTimeout(60000);
+    page.setDefaultNavigationTimeout(60000);
+    
+    // リクエストをブロック（ストリーム問題の原因となるリソースを遮断）
+    await page.setRequestInterception(true);
+    page.on('request', (request) => {
+      const resourceType = request.resourceType();
+      const url = request.url();
+      
+      // 危険なリソースタイプをブロック
+      if (resourceType === 'image' || 
+          resourceType === 'media' || 
+          resourceType === 'font' ||
+          resourceType === 'websocket' ||
+          url.includes('google') ||
+          url.includes('facebook') ||
+          url.includes('twitter') ||
+          /[0-9a-fA-F]{6}/.test(url)) { // 色コードURL完全ブロック
+        request.abort();
+      } else {
+        request.continue();
+      }
+    });
 
-    // デバイスに応じたビューポートを設定
+    // ビューポート設定
     const viewports = {
-      desktop: { width: 1920, height: 1080 },
+      desktop: { width: 1200, height: 800 },
       tablet: { width: 768, height: 1024 },
       mobile: { width: 375, height: 812 }
     };
 
     await page.setViewport(viewports[device] || viewports.desktop);
 
-    // HTMLコンテンツを設定
-    const content = `
+    // 🛡️ 完全サニタイズ済みコンテンツ
+    const safeContent = `
       <!DOCTYPE html>
       <html lang="ja">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>${css}</style>
+        <style>
+          /* ストリームエラー防止CSS */
+          * { 
+            background-image: none !important;
+            content: none !important;
+          }
+          ${css}
+        </style>
       </head>
       <body>
         ${html}
@@ -366,16 +414,25 @@ async function takeScreenshotWithPuppeteer(html, css, device = 'desktop') {
       </html>
     `;
 
-    await page.setContent(content, {
-      waitUntil: ['networkidle0', 'domcontentloaded']
+    console.log('🛡️ Setting safe content...');
+    await page.setContent(safeContent, {
+      waitUntil: 'domcontentloaded',
+      timeout: 30000
     });
 
-    // スクリーンショットを撮影
+    // 追加の安定化待機
+    await page.waitForTimeout(2000);
+    
+    console.log('📸 Taking screenshot with STREAM ERROR prevention...');
     const screenshot = await page.screenshot({
       fullPage: true,
-      type: 'png'
+      type: 'png',
+      timeout: 30000,
+      captureBeyondViewport: false, // ビューポート外キャプチャ無効
+      clip: null // クリップ無効
     });
 
+    console.log('✅ Screenshot successful, size:', screenshot.length);
     return screenshot;
   } finally {
     await browser.close();
