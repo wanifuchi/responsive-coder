@@ -4,14 +4,8 @@ import cors from 'cors';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs/promises';
-// Sharp を条件付きでインポート
-let sharp = null;
-try {
-  sharp = (await import('sharp')).default;
-  console.log('✅ Sharp module loaded successfully');
-} catch (error) {
-  console.log('⚠️ Sharp module not available, using fallback image processing');
-}
+// 画像処理にJimpを使用（Pure JavaScript）
+import { imageToBase64WithJimp } from './image-processor-jimp.js';
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import dotenv from 'dotenv';
@@ -152,7 +146,8 @@ const upload = multer({
   }
 });
 
-// 画像をBase64に変換（Gemini API対応の自動圧縮付き）
+// 古いimageToBase64関数（sharpベース）- 使用停止
+/*
 async function imageToBase64(buffer, maxSizeMB = 3.5) {
   try {
     const maxSizeBytes = maxSizeMB * 1024 * 1024;
@@ -222,6 +217,7 @@ async function imageToBase64(buffer, maxSizeMB = 3.5) {
     return `data:image/png;base64,${base64}`;
   }
 }
+*/
 
 // 画像を解析してHTML/CSSを生成
 async function generateCodeFromDesigns(pcImage, spImage, referenceUrl = null) {
@@ -287,8 +283,8 @@ async function generateWithGemini(pcImage, spImage, referenceUrl) {
     }
     
     // 画像をBase64に変換（自動圧縮付き）
-    const pcBase64 = await imageToBase64(pcImage);
-    const spBase64 = await imageToBase64(spImage);
+    const pcBase64 = await imageToBase64WithJimp(pcImage);
+    const spBase64 = await imageToBase64WithJimp(spImage);
     
     // Base64プレフィックスを削除（Gemini API用）
     const pcImageData = pcBase64.split(',')[1];
@@ -367,8 +363,8 @@ ${referenceUrl ? `参考URL: ${referenceUrl} - このサイトの技術的実装
 async function generateWithOpenAI(pcImage, spImage, referenceUrl) {
   try {
     // 画像をBase64に変換
-    const pcBase64 = await imageToBase64(pcImage);
-    const spBase64 = await imageToBase64(spImage);
+    const pcBase64 = await imageToBase64WithJimp(pcImage);
+    const spBase64 = await imageToBase64WithJimp(spImage);
 
     console.log('🎨 Starting detailed design analysis with GPT-4o...');
     
