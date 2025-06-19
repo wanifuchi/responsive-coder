@@ -245,10 +245,16 @@ async function generateWithGemini(pcImage, spImage, referenceUrl) {
 ### 2. 画像の処理 - ブランクは絶対禁止
 画像内に写真や画像要素がある場合:
 - 元の画像の内容を詳細に説明し、適切な代替画像URLを使用
-- 例: 人物写真 → "https://images.unsplash.com/photo-..." 
-- 例: 製品画像 → "https://via.placeholder.com/400x300/カラーコード/ffffff?text=製品名"
+- 例: 人物写真 → "https://images.unsplash.com/photo-1234567890/sample.jpg" 
+- 例: 製品画像 → "https://via.placeholder.com/400x300/cccccc/ffffff?text=ProductName"
 - 例: アイコン → Font AwesomeやMaterial Iconsから最も近いものを選択
 - **決して空白のimg要素やbackground-imageを残さない**
+
+### 2.5. 色コードの適切な処理 - DNS解決エラーの防止
+- **色コードは必ず#記号付きで記述**: 例 `color: #ffffff;`
+- **URLとして解釈される記述を避ける**: `url(#ffffff)` などは使用禁止
+- **href属性に色コードを使用しない**: `href="#ffffff"` は禁止
+- **JavaScriptでの色コード処理**: 必ず文字列として扱う `"#ffffff"`
 
 ### 3. 詳細な測定と再現
 - 各要素のサイズをピクセル単位で測定
@@ -326,10 +332,13 @@ ${referenceUrl ? `参考URL: ${referenceUrl} - このサイトの技術的実装
       throw new Error('Invalid response format from Gemini');
     }
     
+    // 生成されたコードをサニタイズ
+    const sanitizedResult = sanitizeGeneratedCode(parsedResult);
+    
     return {
-      html: parsedResult.html,
-      css: parsedResult.css,
-      js: parsedResult.js || ''
+      html: sanitizedResult.html,
+      css: sanitizedResult.css,
+      js: sanitizedResult.js || ''
     };
     
   } catch (error) {
@@ -1369,10 +1378,25 @@ app.post("/api/screenshot", express.json({ limit: "50mb" }), async (req, res) =>
     console.error("Screenshot error:", error);
     console.error("Error details:", error.message);
     console.error("Stack trace:", error.stack);
-    res.status(500).json({ 
-      error: "スクリーンショットの生成に失敗しました",
-      details: error.message
-    });
+    
+    // フォールバック: 基本的なプレビュー画像を返す
+    try {
+      const fallbackImage = await generateFallbackPreview(device);
+      const base64 = fallbackImage.toString("base64");
+      
+      res.json({
+        screenshot: `data:image/png;base64,${base64}`,
+        device,
+        fallback: true,
+        message: "スクリーンショット生成でエラーが発生しましたが、フォールバック画像を生成しました"
+      });
+    } catch (fallbackError) {
+      console.error("Fallback screenshot failed:", fallbackError);
+      res.status(500).json({ 
+        error: "スクリーンショットの生成に失敗しました",
+        details: error.message
+      });
+    }
   }
 });
 
@@ -1464,6 +1488,96 @@ app.post("/api/iterate", upload.single("targetImage"), async (req, res) => {
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });
+
+// 生成されたコードのサニタイズ機能
+function sanitizeGeneratedCode(codeObject) {
+  return {
+    html: sanitizeHTML(codeObject.html || ''),
+    css: sanitizeCSS(codeObject.css || ''),
+    js: sanitizeJS(codeObject.js || '')
+  };
+}
+
+function sanitizeHTML(html) {
+  // 不正なhref属性を修正
+  let sanitized = html.replace(/href\s*=\s*["']#[0-9a-fA-F]{6}["']/g, 'href="#"');
+  
+  // 色コードが直接URLとして使用されている場合を修正
+  sanitized = sanitized.replace(/src\s*=\s*["'][0-9a-fA-F]{6}["']/g, 'src="https://via.placeholder.com/300x200/cccccc/ffffff?text=Image"');
+  
+  // 空白のimg要素を修正
+  sanitized = sanitized.replace(/<img[^>]*src\s*=\s*["']["'][^>]*>/g, '<img src="https://via.placeholder.com/300x200/cccccc/ffffff?text=Image" alt="Generated Image">');
+  
+  return sanitized;
+}
+
+function sanitizeCSS(css) {
+  // 不正なurl()記述を修正
+  let sanitized = css.replace(/url\s*\(\s*#[0-9a-fA-F]{6}\s*\)/g, 'none');
+  
+  // 色コードの前に#がない場合を修正
+  sanitized = sanitized.replace(/color\s*:\s*([0-9a-fA-F]{6})\s*;/g, 'color: #$1;');
+  sanitized = sanitized.replace(/background\s*:\s*([0-9a-fA-F]{6})\s*;/g, 'background: #$1;');
+  sanitized = sanitized.replace(/background-color\s*:\s*([0-9a-fA-F]{6})\s*;/g, 'background-color: #$1;');
+  
+  // 無効なCSS値を修正
+  sanitized = sanitized.replace(/:\s*[0-9a-fA-F]{6}\s*(?!;)/g, ': #$&;'.replace(':', ''));
+  
+  return sanitized;
+}
+
+function sanitizeJS(js) {
+  if (!js) return '';
+  
+  // 色コードを適切に文字列として処理
+  let sanitized = js.replace(/(['"]\s*)(#?)([0-9a-fA-F]{6})(\s*['"])/g, '"#$3"');
+  
+  // 不正な色コード参照を修正
+  sanitized = sanitized.replace(/([^"'])#([0-9a-fA-F]{6})([^"'])/g, '$1"#$2"$3');
+  
+  return sanitized;
+}
+
+// フォールバック画像生成
+async function generateFallbackPreview(device = 'desktop') {
+  try {
+    const { createCanvas } = await import('canvas');
+    
+    const sizes = {
+      desktop: { width: 1200, height: 800 },
+      tablet: { width: 768, height: 1024 },
+      mobile: { width: 375, height: 667 }
+    };
+    
+    const { width, height } = sizes[device] || sizes.desktop;
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext('2d');
+    
+    // グラデーション背景
+    const gradient = ctx.createLinearGradient(0, 0, width, height);
+    gradient.addColorStop(0, '#f8f9fa');
+    gradient.addColorStop(1, '#e9ecef');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
+    
+    // エラーメッセージ
+    ctx.fillStyle = '#6c757d';
+    ctx.font = 'bold 24px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Preview Generation Failed', width / 2, height / 2 - 40);
+    
+    ctx.font = '16px Arial';
+    ctx.fillText('Using fallback preview for ' + device, width / 2, height / 2);
+    
+    ctx.font = '14px Arial';
+    ctx.fillText('Please check server logs for details', width / 2, height / 2 + 30);
+    
+    return canvas.toBuffer('image/png');
+  } catch (error) {
+    console.error('Failed to generate fallback preview:', error);
+    throw error;
+  }
+}
 
 // 定期的な一時ファイルクリーンアップ
 setInterval(cleanupTempFiles, 3600000); // 1時間ごと

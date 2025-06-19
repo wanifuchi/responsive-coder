@@ -7,7 +7,12 @@ RUN apk add --no-cache \
     freetype \
     harfbuzz \
     ca-certificates \
-    ttf-freefont
+    ttf-freefont \
+    cairo-dev \
+    jpeg-dev \
+    pango-dev \
+    giflib-dev \
+    pixman-dev
 
 # Puppeteerが使用するChromiumのパスを指定
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
