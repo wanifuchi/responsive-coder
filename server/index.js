@@ -155,20 +155,42 @@ async function generateCodeFromDesigns(pcImage, spImage, referenceUrl = null) {
     if (geminiModel) {
       console.log('🌟 Using Gemini Pro Vision for image analysis...');
       const rawResult = await generateWithGemini(pcImage, spImage, referenceUrl);
+      
+      // デバッグ: サニタイズを一時的に無効化
+      console.log('🔍 DEBUGGING: Sanitization temporarily disabled');
+      console.log('Raw result preview:', {
+        htmlLength: rawResult.html?.length || 0,
+        cssLength: rawResult.css?.length || 0,
+        htmlPreview: rawResult.html?.substring(0, 200) || 'empty'
+      });
+      
+      return rawResult; // サニタイズなしで返す
+      
       // 生成されたコードをサニタイズ
-      const sanitizedResult = sanitizeGeneratedCode(rawResult);
-      console.log('🧹 Code sanitization completed');
-      return sanitizedResult;
+      // const sanitizedResult = sanitizeGeneratedCode(rawResult);
+      // console.log('🧹 Code sanitization completed');
+      // return sanitizedResult;
     }
     
     // OpenAI APIをフォールバックとして使用
     if (openai) {
       console.log('🔄 Falling back to OpenAI GPT-4o...');
       const rawResult = await generateWithOpenAI(pcImage, spImage, referenceUrl);
+      
+      // デバッグ: サニタイズを一時的に無効化
+      console.log('🔍 DEBUGGING: Sanitization temporarily disabled');
+      console.log('Raw result preview:', {
+        htmlLength: rawResult.html?.length || 0,
+        cssLength: rawResult.css?.length || 0,
+        htmlPreview: rawResult.html?.substring(0, 200) || 'empty'
+      });
+      
+      return rawResult; // サニタイズなしで返す
+      
       // 生成されたコードをサニタイズ
-      const sanitizedResult = sanitizeGeneratedCode(rawResult);
-      console.log('🧹 Code sanitization completed');
-      return sanitizedResult;
+      // const sanitizedResult = sanitizeGeneratedCode(rawResult);
+      // console.log('🧹 Code sanitization completed');
+      // return sanitizedResult;
     }
     
     // どちらのAPIも利用できない場合
@@ -337,13 +359,53 @@ ${referenceUrl ? `参考URL: ${referenceUrl} - このサイトの技術的実装
     const text = response.text();
     console.log('📊 Gemini response length:', text.length);
     
-    // JSONを抽出
-    const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || 
-                     text.match(/```\s*([\s\S]*?)\s*```/) ||
-                     [null, text];
+    // JSONを抽出（より柔軟なアプローチ）
+    let parsedResult;
     
-    const jsonContent = jsonMatch[1] || text;
-    const parsedResult = JSON.parse(jsonContent.trim());
+    try {
+      // まず、コードブロック内のJSONを探す
+      const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || 
+                       text.match(/```\s*([\s\S]*?)\s*```/);
+      
+      if (jsonMatch) {
+        const jsonContent = jsonMatch[1].trim();
+        console.log('📄 Extracted JSON from code block:', jsonContent.substring(0, 200));
+        parsedResult = JSON.parse(jsonContent);
+      } else {
+        // コードブロックがない場合、全文からJSONを探す
+        const cleanText = text.trim();
+        console.log('📄 Attempting to parse full response as JSON:', cleanText.substring(0, 200));
+        parsedResult = JSON.parse(cleanText);
+      }
+    } catch (firstParseError) {
+      console.warn('⚠️ First JSON parse failed:', firstParseError.message);
+      
+      // バックアップ：レスポンスからHTML/CSSを正規表現で抽出
+      try {
+        const htmlMatch = text.match(/(?:\"html\":\s*\")([\s\S]*?)(?:\",?\s*\"css\")/i) ||
+                         text.match(/(?:html[\":\s]*)([\s\S]*?)(?:css)/i);
+        const cssMatch = text.match(/(?:\"css\":\s*\")([\s\S]*?)(?:\",?\s*(?:\"js\"|\\}|$))/i) ||
+                        text.match(/(?:css[\":\s]*)([\s\S]*?)(?:js|\\}|$)/i);
+        
+        if (htmlMatch && cssMatch) {
+          // エスケープされた文字を戻す
+          const html = htmlMatch[1].replace(/\\n/g, '\\n').replace(/\\\"/g, '\"').replace(/\\\\/g, '\\\\');
+          const css = cssMatch[1].replace(/\\n/g, '\\n').replace(/\\\"/g, '\"').replace(/\\\\/g, '\\\\');
+          
+          parsedResult = {
+            html: html,
+            css: css,
+            js: ''
+          };
+          console.log('🔧 Recovered code using regex extraction');
+        } else {
+          throw new Error('Could not extract HTML/CSS from malformed response');
+        }
+      } catch (regexError) {
+        console.error('❌ Regex extraction also failed:', regexError.message);
+        throw new Error(`Failed to parse Gemini response: ${firstParseError.message}`);
+      }
+    }
     
     if (!parsedResult.html || !parsedResult.css) {
       throw new Error('Invalid response format from Gemini');
@@ -1527,79 +1589,144 @@ app.get("/api/health", (req, res) => {
 
 // 生成されたコードのサニタイズ機能
 function sanitizeGeneratedCode(codeObject) {
-  return {
+  console.log('🧹 Starting code sanitization...');
+  console.log('Pre-sanitization stats:', {
+    htmlLength: (codeObject.html || '').length,
+    cssLength: (codeObject.css || '').length,
+    jsLength: (codeObject.js || '').length
+  });
+  
+  const result = {
     html: sanitizeHTML(codeObject.html || ''),
     css: sanitizeCSS(codeObject.css || ''),
     js: sanitizeJS(codeObject.js || '')
   };
+  
+  console.log('Post-sanitization stats:', {
+    htmlLength: result.html.length,
+    cssLength: result.css.length,
+    jsLength: result.js.length
+  });
+  
+  // 内容が極端に短くなっている場合は警告
+  if (codeObject.html && result.html.length < codeObject.html.length * 0.5) {
+    console.warn('⚠️ HTML content reduced significantly during sanitization');
+    console.log('Original HTML preview:', codeObject.html.substring(0, 500));
+    console.log('Sanitized HTML preview:', result.html.substring(0, 500));
+  }
+  
+  if (codeObject.css && result.css.length < codeObject.css.length * 0.5) {
+    console.warn('⚠️ CSS content reduced significantly during sanitization');
+    console.log('Original CSS preview:', codeObject.css.substring(0, 500));
+    console.log('Sanitized CSS preview:', result.css.substring(0, 500));
+  }
+  
+  return result;
 }
 
 function sanitizeHTML(html) {
+  if (!html || html.trim() === '') {
+    console.warn('⚠️ Empty HTML provided to sanitizer');
+    return html;
+  }
+  
   let sanitized = html;
+  let changesCount = 0;
   
-  // 1. 不正なhref属性を修正（色コード）
-  sanitized = sanitized.replace(/href\s*=\s*["']#?[0-9a-fA-F]{6}["']/g, 'href="#"');
-  sanitized = sanitized.replace(/href\s*=\s*["'][0-9a-fA-F]{6}["']/g, 'href="#"');
-  
-  // 2. 色コードが直接URL/src属性として使用されている場合を修正
-  sanitized = sanitized.replace(/src\s*=\s*["'][#]?[0-9a-fA-F]{6}["']/g, 'src="https://via.placeholder.com/300x200/cccccc/ffffff?text=Image"');
-  sanitized = sanitized.replace(/src\s*=\s*["'][0-9a-fA-F]{6}["']/g, 'src="https://via.placeholder.com/300x200/cccccc/ffffff?text=Image"');
-  
-  // 3. 空白または不正なimg要素を修正
-  sanitized = sanitized.replace(/<img[^>]*src\s*=\s*["']["'][^>]*>/g, '<img src="https://via.placeholder.com/300x200/cccccc/ffffff?text=Image" alt="Generated Image">');
-  sanitized = sanitized.replace(/<img[^>]*src\s*=\s*["'][^"']*["'][^>]*alt\s*=\s*["']["'][^>]*>/g, '<img src="https://via.placeholder.com/300x200/cccccc/ffffff?text=Image" alt="Generated Image">');
-  
-  // 4. 色コードがclass名やid名として使用されている場合を修正
-  sanitized = sanitized.replace(/class\s*=\s*["'][0-9a-fA-F]{6}["']/g, 'class="generated-element"');
-  sanitized = sanitized.replace(/id\s*=\s*["'][0-9a-fA-F]{6}["']/g, 'id="generated-element"');
-  
-  // 5. data属性に色コードが入っている場合を修正
-  sanitized = sanitized.replace(/data-[^=]*\s*=\s*["'][#]?[0-9a-fA-F]{6}["']/g, 'data-color="#cccccc"');
-  
-  // 6. style属性内の色コード修正
-  sanitized = sanitized.replace(/style\s*=\s*["'][^"']*color\s*:\s*([0-9a-fA-F]{6})[^"']*["']/g, (match, colorCode) => {
-    return match.replace(colorCode, '#' + colorCode);
+  // 1. 不正なhref属性を修正（色コード）- より慎重なマッチング
+  const hrefPattern1 = /href\s*=\s*["']\s*#?([0-9a-fA-F]{6})\s*["']/g;
+  sanitized = sanitized.replace(hrefPattern1, (match, colorCode) => {
+    changesCount++;
+    console.log(`Fixed href color code: ${match} -> href="#"`);
+    return 'href="#"';
   });
   
+  // 2. 色コードが直接src属性として使用されている場合のみ修正
+  const srcPattern = /src\s*=\s*["']\s*#?([0-9a-fA-F]{6})\s*["']/g;
+  sanitized = sanitized.replace(srcPattern, (match, colorCode) => {
+    changesCount++;
+    console.log(`Fixed src color code: ${match}`);
+    return 'src="https://via.placeholder.com/300x200/cccccc/ffffff?text=Image"';
+  });
+  
+  // 3. 色コードがclass名/id名として使用されている場合のみ修正
+  const classPattern = /class\s*=\s*["']\s*([0-9a-fA-F]{6})\s*["']/g;
+  sanitized = sanitized.replace(classPattern, (match, colorCode) => {
+    changesCount++;
+    console.log(`Fixed class color code: ${match}`);
+    return 'class="generated-element"';
+  });
+  
+  const idPattern = /id\s*=\s*["']\s*([0-9a-fA-F]{6})\s*["']/g;
+  sanitized = sanitized.replace(idPattern, (match, colorCode) => {
+    changesCount++;
+    console.log(`Fixed id color code: ${match}`);
+    return 'id="generated-element"';
+  });
+  
+  // 4. style属性内の色コード修正（#を追加）
+  const stylePattern = /style\s*=\s*["']([^"']*color\s*:\s*)([0-9a-fA-F]{6})([^"']*)["']/g;
+  sanitized = sanitized.replace(stylePattern, (match, before, colorCode, after) => {
+    changesCount++;
+    console.log(`Fixed style color code: ${colorCode} -> #${colorCode}`);
+    return `style="${before}#${colorCode}${after}"`;
+  });
+  
+  console.log(`🧹 HTML sanitization: ${changesCount} changes made`);
   return sanitized;
 }
 
 function sanitizeCSS(css) {
+  if (!css || css.trim() === '') {
+    console.warn('⚠️ Empty CSS provided to sanitizer');
+    return css;
+  }
+  
   let sanitized = css;
+  let changesCount = 0;
   
-  // 1. 不正なurl()記述を修正
-  sanitized = sanitized.replace(/url\s*\(\s*[#]?[0-9a-fA-F]{6}\s*\)/g, 'none');
-  sanitized = sanitized.replace(/url\s*\(\s*["'][#]?[0-9a-fA-F]{6}["']\s*\)/g, 'none');
-  
-  // 2. 色プロパティの#記号補完
-  sanitized = sanitized.replace(/color\s*:\s*([0-9a-fA-F]{6})([;\s}])/g, 'color: #$1$2');
-  sanitized = sanitized.replace(/background\s*:\s*([0-9a-fA-F]{6})([;\s}])/g, 'background: #$1$2');
-  sanitized = sanitized.replace(/background-color\s*:\s*([0-9a-fA-F]{6})([;\s}])/g, 'background-color: #$1$2');
-  sanitized = sanitized.replace(/border-color\s*:\s*([0-9a-fA-F]{6})([;\s}])/g, 'border-color: #$1$2');
-  sanitized = sanitized.replace(/outline-color\s*:\s*([0-9a-fA-F]{6})([;\s}])/g, 'outline-color: #$1$2');
-  
-  // 3. CSS変数内の色コード修正
-  sanitized = sanitized.replace(/--[^:]*:\s*([0-9a-fA-F]{6})([;\s}])/g, (match, colorCode, ending) => {
-    return match.replace(colorCode, '#' + colorCode);
+  // 1. 不正なurl()記述を修正（色コードのみ）
+  const urlPattern1 = /url\s*\(\s*([0-9a-fA-F]{6})\s*\)/g;
+  sanitized = sanitized.replace(urlPattern1, (match, colorCode) => {
+    changesCount++;
+    console.log(`Fixed CSS url() color code: ${match}`);
+    return 'none';
   });
   
-  // 4. 色コードがセレクタ名になっている場合を修正
-  sanitized = sanitized.replace(/\.[0-9a-fA-F]{6}\s*\{/g, '.generated-class {');
-  sanitized = sanitized.replace(/#[0-9a-fA-F]{6}\s*\{/g, '#generated-id {');
-  
-  // 5. content プロパティ内の色コード修正
-  sanitized = sanitized.replace(/content\s*:\s*["'][^"']*([0-9a-fA-F]{6})[^"']*["']/g, (match, colorCode) => {
-    return match.replace(colorCode, '#' + colorCode);
+  const urlPattern2 = /url\s*\(\s*["']([0-9a-fA-F]{6})["']\s*\)/g;
+  sanitized = sanitized.replace(urlPattern2, (match, colorCode) => {
+    changesCount++;
+    console.log(`Fixed CSS url() quoted color code: ${match}`);
+    return 'none';
   });
   
-  // 6. 不正なプロパティ値の修正
-  sanitized = sanitized.replace(/:\s*([0-9a-fA-F]{6})\s*([;}])/g, ': #$1$2');
-  
-  // 7. box-shadow, text-shadow内の色コード修正
-  sanitized = sanitized.replace(/(box-shadow|text-shadow)\s*:\s*([^;]*?)([0-9a-fA-F]{6})([^;]*?)(;|\})/g, (match, prop, before, colorCode, after, ending) => {
-    return `${prop}: ${before}#${colorCode}${after}${ending}`;
+  // 2. 色プロパティの#記号補完（既に#がない場合のみ）
+  const colorProperties = ['color', 'background-color', 'background', 'border-color', 'outline-color'];
+  colorProperties.forEach(prop => {
+    const pattern = new RegExp(`(${prop})\\s*:\\s*([0-9a-fA-F]{6})([;\\s}])`, 'g');
+    sanitized = sanitized.replace(pattern, (match, property, colorCode, ending) => {
+      changesCount++;
+      console.log(`Fixed CSS ${property}: ${colorCode} -> #${colorCode}`);
+      return `${property}: #${colorCode}${ending}`;
+    });
   });
   
+  // 3. 色コードがセレクタ名になっている場合を修正
+  const selectorPattern1 = /\.([0-9a-fA-F]{6})\s*\{/g;
+  sanitized = sanitized.replace(selectorPattern1, (match, colorCode) => {
+    changesCount++;
+    console.log(`Fixed CSS class selector: .${colorCode}`);
+    return '.generated-class {';
+  });
+  
+  const selectorPattern2 = /#([0-9a-fA-F]{6})\s*\{/g;
+  sanitized = sanitized.replace(selectorPattern2, (match, colorCode) => {
+    changesCount++;
+    console.log(`Fixed CSS id selector: #${colorCode}`);
+    return '#generated-id {';
+  });
+  
+  console.log(`🧹 CSS sanitization: ${changesCount} changes made`);
   return sanitized;
 }
 

@@ -7,23 +7,57 @@ function CodePreview({ html, css }) {
 
   useEffect(() => {
     if (iframeRef.current && html && css) {
-      const document = iframeRef.current.contentDocument;
-      const content = `
-        <!DOCTYPE html>
-        <html lang="ja">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <style>${css}</style>
-        </head>
-        <body>
-          ${html}
-        </body>
-        </html>
-      `;
-      document.open();
-      document.write(content);
-      document.close();
+      try {
+        const document = iframeRef.current.contentDocument;
+        
+        // HTMLとCSSの有効性をチェック
+        if (!html.trim() || !css.trim()) {
+          console.warn('⚠️ Empty HTML or CSS provided to CodePreview');
+          return;
+        }
+        
+        const content = `
+          <!DOCTYPE html>
+          <html lang="ja">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>${css}</style>
+          </head>
+          <body>
+            ${html}
+          </body>
+          </html>
+        `;
+        
+        console.log('📱 Updating CodePreview iframe with content length:', {
+          htmlLength: html.length,
+          cssLength: css.length,
+          totalContentLength: content.length
+        });
+        
+        document.open();
+        document.write(content);
+        document.close();
+      } catch (error) {
+        console.error('❌ Error updating CodePreview iframe:', error);
+        
+        // エラー時のフォールバック表示
+        const document = iframeRef.current.contentDocument;
+        document.open();
+        document.write(`
+          <!DOCTYPE html>
+          <html>
+          <head><meta charset="UTF-8"></head>
+          <body style="font-family: Arial, sans-serif; padding: 20px; color: #e74c3c;">
+            <h2>⚠️ プレビューエラー</h2>
+            <p>コードのプレビューを表示できませんでした。</p>
+            <p>エラー: ${error.message}</p>
+          </body>
+          </html>
+        `);
+        document.close();
+      }
     }
   }, [html, css]);
 

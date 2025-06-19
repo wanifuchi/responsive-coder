@@ -110,11 +110,46 @@ function App() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'コード生成に失敗しました');
+        const errorText = await response.text();
+        console.error('Server response error:', {
+          status: response.status,
+          statusText: response.statusText,
+          responseText: errorText,
+          headers: Object.fromEntries(response.headers.entries())
+        });
+        
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: `HTTP ${response.status}: ${errorText.substring(0, 200)}` };
+        }
+        
+        throw new Error(errorData.error || `サーバーエラー (${response.status}): ${errorData.details || '詳細不明'}`);
       }
 
       const result = await response.json();
+      
+      // デバッグ情報をコンソールに出力
+      console.log('API Response:', {
+        hasHtml: !!result.html,
+        hasCs: !!result.css,
+        hasJs: !!result.js,
+        htmlLength: result.html?.length || 0,
+        cssLength: result.css?.length || 0,
+        jsLength: result.js?.length || 0,
+        fullResult: result
+      });
+      
+      // 空のレスポンスをチェック
+      if (!result.html || result.html.trim() === '') {
+        throw new Error('サーバーから空のHTMLが返されました。API処理に問題がある可能性があります。');
+      }
+      
+      if (!result.css || result.css.trim() === '') {
+        throw new Error('サーバーから空のCSSが返されました。API処理に問題がある可能性があります。');
+      }
+      
       setGeneratedCode({
         html: result.html,
         css: result.css,
@@ -122,13 +157,19 @@ function App() {
       });
       
       setAppStatus('success');
-      setAppStatusMessage('コード生成が完了しました！');
-      setTimeout(() => setAppStatus(null), 3000);
+      setAppStatusMessage(`コード生成完了！HTML: ${result.html.length}文字, CSS: ${result.css.length}文字`);
+      setTimeout(() => setAppStatus(null), 5000);
     } catch (error) {
       console.error('Error generating code:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      
       setAppStatus('error');
-      setAppStatusMessage(error.message || 'コード生成中にエラーが発生しました');
-      setTimeout(() => setAppStatus(null), 5000);
+      setAppStatusMessage(`エラー: ${error.message || 'コード生成中に不明なエラーが発生しました'}`);
+      setTimeout(() => setAppStatus(null), 8000);
     } finally {
       setIsGenerating(false);
     }
@@ -283,7 +324,17 @@ function App() {
           </div>
         </div>
 
-        {generatedCode.html && (
+        {/* デバッグ情報表示 */}
+        {(generatedCode.html || generatedCode.css) && (
+          <div style={{background: '#e3f2fd', padding: '10px', margin: '10px 0', borderRadius: '5px', fontSize: '12px'}}>
+            <strong>🔍 デバッグ情報:</strong>
+            <div>HTML: {generatedCode.html ? `✅ ${generatedCode.html.length}文字` : '❌ 空'}</div>
+            <div>CSS: {generatedCode.css ? `✅ ${generatedCode.css.length}文字` : '❌ 空'}</div>
+            <div>JS: {generatedCode.js ? `✅ ${generatedCode.js.length}文字` : '❌ 空'}</div>
+          </div>
+        )}
+        
+        {generatedCode.html && generatedCode.css && (
           <>
             <CodeGenerator 
               html={generatedCode.html}
@@ -302,6 +353,19 @@ function App() {
               onCodeUpdate={handleCodeUpdate}
             />
           </>
+        )}
+        
+        {/* エラー状態表示 */}
+        {(generatedCode.html && !generatedCode.css) && (
+          <div style={{background: '#fff3cd', padding: '15px', margin: '10px 0', borderRadius: '5px', border: '1px solid #ffeaa7'}}>
+            ⚠️ HTMLは生成されましたが、CSSが空です。サーバー処理で問題が発生している可能性があります。
+          </div>
+        )}
+        
+        {(!generatedCode.html && generatedCode.css) && (
+          <div style={{background: '#fff3cd', padding: '15px', margin: '10px 0', borderRadius: '5px', border: '1px solid #ffeaa7'}}>
+            ⚠️ CSSは生成されましたが、HTMLが空です。サーバー処理で問題が発生している可能性があります。
+          </div>
         )}
       </main>
       
