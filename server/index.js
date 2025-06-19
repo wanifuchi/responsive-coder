@@ -1142,8 +1142,8 @@ app.post("/api/generate-code", upload.any(), async (req, res) => {
       res.json(generatedCode);
     } else {
       // シングル画像モード（従来の処理）
-      const pcFile = req.files.find(f => f.fieldname === "pcDesign");
-      const spFile = req.files.find(f => f.fieldname === "spDesign");
+      const pcFile = req.files.find(f => f.fieldname === "pcDesign" || f.fieldname === "pcImage");
+      const spFile = req.files.find(f => f.fieldname === "spDesign" || f.fieldname === "spImage");
 
       if (!pcFile || !spFile) {
         return res.status(400).json({ error: "両方のデザインファイルが必要です" });
