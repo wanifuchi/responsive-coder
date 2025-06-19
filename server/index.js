@@ -39,7 +39,7 @@ const hasValidGeminiKey = process.env.GEMINI_API_KEY &&
 if (hasValidGeminiKey) {
   console.log('✅ Gemini API key detected, initializing client...');
   genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  geminiModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 } else {
   console.log('⚠️ WARNING: Gemini API key not configured!');
   console.log('  - Key exists:', !!process.env.GEMINI_API_KEY);
