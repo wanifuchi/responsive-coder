@@ -1090,7 +1090,8 @@ app.post("/api/generate-code", upload.any(), async (req, res) => {
   try {
     console.log('📝 Request received:', { 
       mode: req.body.mode, 
-      filesCount: req.files ? req.files.length : 0 
+      filesCount: req.files ? req.files.length : 0,
+      fieldNames: req.files ? req.files.map(f => f.fieldname) : []
     });
     
     // req.filesが存在しない場合のエラーハンドリング
@@ -1144,6 +1145,12 @@ app.post("/api/generate-code", upload.any(), async (req, res) => {
       // シングル画像モード（従来の処理）
       const pcFile = req.files.find(f => f.fieldname === "pcDesign" || f.fieldname === "pcImage");
       const spFile = req.files.find(f => f.fieldname === "spDesign" || f.fieldname === "spImage");
+
+      console.log('🔍 File search results:', {
+        pcFile: pcFile ? pcFile.fieldname : 'not found',
+        spFile: spFile ? spFile.fieldname : 'not found',
+        allFields: req.files.map(f => f.fieldname)
+      });
 
       if (!pcFile || !spFile) {
         return res.status(400).json({ error: "両方のデザインファイルが必要です" });
