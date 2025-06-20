@@ -402,12 +402,25 @@ async function generateCodeFromDesigns(pcImage, spImage, referenceUrl = null) {
   try {
     console.log('🎯 Starting design analysis...');
     
-    // PixelPerfectEngine を試行
+    // 🔥 Vision API を最優先で実行（20000文字級生成のため）
+    if (geminiModel) {
+      console.log('🚀 PRIMARY: Using Gemini Vision API for full 20k+ generation...');
+      return await generateWithGemini(pcImage, spImage, referenceUrl);
+    }
+    
+    if (openai) {
+      console.log('🚀 PRIMARY: Using OpenAI Vision API for full 20k+ generation...');
+      return await generateWithOpenAI(pcImage, spImage, referenceUrl);
+    }
+    
+    console.log('⚠️ No Vision API available, trying PixelPerfectEngine...');
+    
+    // PixelPerfectEngine をフォールバックとして使用
     try {
       const engine = new PixelPerfectEngine();
-      console.log('📊 Analyzing PC design...');
+      console.log('📊 Analyzing PC design with PixelPerfectEngine...');
       const pcAnalysis = await engine.analyzeDesignCompletely(pcImage);
-      console.log('📱 Analyzing SP design...');
+      console.log('📱 Analyzing SP design with PixelPerfectEngine...');
       const spAnalysis = await engine.analyzeDesignCompletely(spImage);
       
       const html = engine.generatePixelPerfectHTML(pcAnalysis);
@@ -420,17 +433,6 @@ document.addEventListener('DOMContentLoaded', function() {
       return { html, css, js };
     } catch (engineError) {
       console.error('❌ PixelPerfectEngine failed:', engineError);
-      
-      // Vision API フォールバック
-      if (geminiModel) {
-        console.log('🔄 Falling back to Gemini Vision API...');
-        return await generateWithGemini(pcImage, spImage, referenceUrl);
-      }
-      
-      if (openai) {
-        console.log('🔄 Falling back to OpenAI Vision API...');
-        return await generateWithOpenAI(pcImage, spImage, referenceUrl);
-      }
     }
     
     // 最終フォールバック
